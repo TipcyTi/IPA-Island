@@ -12,6 +12,26 @@ struct MyApp: App {
     }
 }
 
+/// 所有尺寸都按屏幕宽度等比缩放，不使用固定 px。
+struct Metrics {
+    let scale: CGFloat
+
+    init(width: CGFloat) {
+        let base: CGFloat = 390
+        scale = min(max(width / base, 0.8), 1.3)
+    }
+
+    func size(_ value: CGFloat) -> CGFloat { value * scale }
+
+    var pagePadding: CGFloat { size(16) }
+    var rowSpacing: CGFloat { size(16) }
+    var thumb: CGFloat { size(64) }
+    var radius: CGFloat { size(8) }
+    var chipText: CGFloat { size(14) }
+    var bodyText: CGFloat { size(16) }
+    var metaText: CGFloat { size(14) }
+}
+
 struct DesignerView: View {
     @State private var title = "进行中"
     @State private var photoItem: PhotosPickerItem?
@@ -20,7 +40,6 @@ struct DesignerView: View {
     @State private var imageBase64 = ""
     @State private var activity: Activity<DesignActivityAttributes>?
     @State private var updateTask: Task<Void, Never>?
-    @State private var note = ""
 
     private var state: DesignActivityAttributes.ContentState {
         DesignActivityAttributes.ContentState(
@@ -32,13 +51,17 @@ struct DesignerView: View {
     private var running: Bool { activity != nil }
 
     var body: some View {
-        ZStack {
-            background
+        GeometryReader { geo in
+            let m = Metrics(width: geo.size.width)
 
-            VStack(spacing: 0) {
-                topBar
-                list
-                bottomBar
+            ZStack {
+                backdrop(m)
+
+                VStack(spacing: 0) {
+                    topBar(m)
+                    list(m)
+                    bottomBar(m)
+                }
             }
         }
         .photosPicker(isPresented: $showPicker, selection: $photoItem, matching: .images)
@@ -52,16 +75,16 @@ struct DesignerView: View {
         }
     }
 
-    // MARK: - 背景（有图时是同一张图的模糊版）
+    // MARK: - 背景
 
     @ViewBuilder
-    private var background: some View {
+    private func backdrop(_ m: Metrics) -> some View {
         if let image {
             Image(uiImage: image)
                 .resizable()
                 .scaledToFill()
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .blur(radius: 40)
+                .blur(radius: m.size(40))
                 .overlay(Palette.canvas.opacity(0.58))
                 .clipped()
                 .ignoresSafeArea()
@@ -72,15 +95,17 @@ struct DesignerView: View {
 
     // MARK: - 顶栏
 
-    private var topBar: some View {
-        HStack(spacing: 6) {
-            chip("MyApp")
-            Text("/")
-                .font(.footnote)
-                .foregroundStyle(Palette.caption)
-            chip("实时活动")
+    private func topBar(_ m: Metrics) -> some View {
+        HStack(spacing: m.size(6)) {
+            chip("MyApp", m)
 
-            Spacer(minLength: 8)
+            Text("/")
+                .font(.system(size: m.metaText))
+                .foregroundStyle(Palette.caption)
+
+            chip("实时活动", m)
+
+            Spacer(minLength: m.size(8))
 
             Menu {
                 Button {
@@ -98,112 +123,103 @@ struct DesignerView: View {
                 }
             } label: {
                 Image(systemName: "ellipsis")
-                    .font(.system(size: 13, weight: .semibold))
+                    .font(.system(size: m.size(13), weight: .semibold))
                     .foregroundStyle(Palette.ink)
-                    .frame(width: 30, height: 30)
-                    .overlay(Circle().strokeBorder(Palette.ink, lineWidth: 1.5))
+                    .frame(width: m.size(30), height: m.size(30))
+                    .overlay(
+                        Circle().strokeBorder(Palette.ink, lineWidth: m.size(1.5))
+                    )
             }
         }
-        .padding(16)
+        .padding(m.pagePadding)
     }
 
-    private func chip(_ text: String) -> some View {
+    private func chip(_ text: String, _ m: Metrics) -> some View {
         Text(text)
-            .font(.system(size: 14, weight: .semibold))
+            .font(.system(size: m.chipText, weight: .semibold))
             .foregroundStyle(Palette.ink)
-            .padding(.horizontal, 8)
-            .padding(.vertical, 8)
+            .padding(.horizontal, m.size(8))
+            .padding(.vertical, m.size(8))
             .background(
-                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                RoundedRectangle(cornerRadius: m.radius, style: .continuous)
                     .fill(Palette.chip)
             )
     }
 
     // MARK: - 列表
 
-    private var list: some View {
+    private func list(_ m: Metrics) -> some View {
         ScrollView(showsIndicators: false) {
             VStack(alignment: .leading, spacing: 0) {
-                coverTile
-                coverHint
-                titleRow
+                imageRow(m)
+                titleRow(m)
             }
-            .padding(.horizontal, 16)
-            .padding(.bottom, 24)
+            .padding(.horizontal, m.pagePadding)
+            .padding(.bottom, m.size(24))
         }
         .frame(maxHeight: .infinity)
     }
 
-    /// 封面：一整块正方形，有图时被图片铺满，点它就能换图。
-    private var coverTile: some View {
+    private func imageRow(_ m: Metrics) -> some View {
         Button {
             showPicker = true
         } label: {
-            ZStack {
-                if let image {
-                    Image(uiImage: image)
-                        .resizable()
-                        .scaledToFill()
-                } else {
-                    Palette.chip
+            HStack(alignment: .top, spacing: m.size(6)) {
+                thumb(m)
 
-                    VStack(spacing: 8) {
-                        Image(systemName: "photo")
-                            .font(.system(size: 28, weight: .light))
-                        Text("选择封面")
-                            .font(.footnote)
-                    }
-                    .foregroundStyle(Palette.caption)
+                VStack(alignment: .leading, spacing: m.size(4)) {
+                    Text("封面图")
+                        .font(.system(size: m.bodyText))
+                        .foregroundStyle(Palette.ink)
+                    Text(image == nil ? "未选择" : byteText)
+                        .font(.system(size: m.metaText))
+                        .foregroundStyle(Palette.caption)
                 }
+
+                Spacer(minLength: 0)
             }
-            .frame(maxWidth: .infinity)
-            .aspectRatio(1, contentMode: .fit)
-            .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+            .padding(.vertical, m.rowSpacing)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
     }
 
-    private var coverHint: some View {
-        Text(image == nil ? "未选择封面时只显示一行文字" : "点击图片可更换封面")
-            .font(.footnote)
-            .foregroundStyle(Palette.caption)
-            .padding(.top, 8)
+    private func titleRow(_ m: Metrics) -> some View {
+        TextField("输入文字", text: $title)
+            .font(.system(size: m.bodyText))
+            .foregroundStyle(Palette.ink)
+            .padding(.vertical, m.rowSpacing)
     }
 
-    private var titleRow: some View {
-        VStack(alignment: .leading, spacing: 2) {
-            TextField("一行文字", text: $title)
-                .font(.body)
-                .foregroundStyle(Palette.ink)
-            Text("实时活动只显示这一行，太长会滚动")
-                .font(.footnote)
+    @ViewBuilder
+    private func thumb(_ m: Metrics) -> some View {
+        if let image {
+            Image(uiImage: image)
+                .resizable()
+                .scaledToFill()
+                .frame(width: m.thumb, height: m.thumb)
+                .clipped()
+        } else {
+            Image(systemName: "photo")
+                .font(.system(size: m.size(22), weight: .regular))
                 .foregroundStyle(Palette.caption)
+                .frame(width: m.thumb, height: m.thumb)
+                .background(Palette.chip)
         }
-        .padding(.vertical, 16)
     }
 
-    // MARK: - 底栏（只有启动 / 停止）
+    private var byteText: String {
+        "\(max(1, imageBase64.count / 1024)) KB"
+    }
 
-    private var bottomBar: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            if !note.isEmpty {
-                Text(note)
-                    .font(.footnote)
-                    .foregroundStyle(Palette.caption)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-            }
+    // MARK: - 底栏
 
-            HStack(spacing: 8) {
-                barButton("启动实时活动", filled: true, enabled: !running) {
-                    start()
-                }
-                barButton("停止", filled: false, enabled: running) {
-                    stop()
-                }
-            }
+    private func bottomBar(_ m: Metrics) -> some View {
+        HStack(spacing: m.size(8)) {
+            barButton("启动实时活动", filled: true, enabled: !running, m) { start() }
+            barButton("停止", filled: false, enabled: running, m) { stop() }
         }
-        .padding(8)
+        .padding(m.size(8))
         .background {
             if image == nil {
                 Palette.canvas
@@ -211,23 +227,24 @@ struct DesignerView: View {
                 Rectangle().fill(.ultraThinMaterial)
             }
         }
-        .shadow(color: .black.opacity(0.10), radius: 14, x: 0, y: -4)
+        .shadow(color: .black.opacity(0.10), radius: m.size(14), x: 0, y: -m.size(4))
     }
 
     private func barButton(
         _ label: String,
         filled: Bool,
         enabled: Bool,
+        _ m: Metrics,
         action: @escaping () -> Void
     ) -> some View {
         Button(action: action) {
             Text(label)
-                .font(.system(size: 15, weight: .medium))
+                .font(.system(size: m.size(15), weight: .medium))
                 .frame(maxWidth: .infinity)
-                .padding(.vertical, 10)
+                .padding(.vertical, m.size(10))
                 .foregroundStyle(filled ? Palette.canvas : Palette.ink)
                 .background(
-                    RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    RoundedRectangle(cornerRadius: m.radius, style: .continuous)
                         .fill(filled ? Palette.ink : Palette.chip)
                 )
         }
@@ -241,28 +258,22 @@ struct DesignerView: View {
     @MainActor
     private func loadImage(from item: PhotosPickerItem) async {
         guard let data = try? await item.loadTransferable(type: Data.self),
-              let picked = UIImage(data: data) else {
-            note = "这张图片读不出来"
-            return
-        }
+              let picked = UIImage(data: data) else { return }
 
         image = picked
 
         guard let thumbnail = makeThumbnail(from: picked) else {
             imageBase64 = ""
-            note = "图片转换失败"
             return
         }
 
         imageBase64 = thumbnail.base64EncodedString()
-        note = running ? "封面已同步到实时活动" : "封面已就绪（\(max(1, thumbnail.count / 1024)) KB）"
     }
 
     private func clearImage() {
         image = nil
         imageBase64 = ""
         photoItem = nil
-        note = running ? "封面已移除" : "已移除封面"
     }
 
     /// 实时活动状态有 4KB 上限，只能放缩略图：逐步压到 ≤1600 字节。
@@ -313,25 +324,16 @@ struct DesignerView: View {
 
     private func start() {
         guard !running else { return }
-
-        guard ActivityAuthorizationInfo().areActivitiesEnabled else {
-            note = "系统未允许实时活动，请到 设置 → 通知 打开"
-            return
-        }
+        guard ActivityAuthorizationInfo().areActivitiesEnabled else { return }
 
         let content = state
         Task { @MainActor in
-            do {
-                let newActivity = try Activity.request(
-                    attributes: DesignActivityAttributes(),
-                    content: ActivityContent(state: content, staleDate: nil),
-                    pushType: nil
-                )
-                activity = newActivity
-                note = "已启动，去看锁屏或灵动岛"
-            } catch {
-                note = "启动失败：\(error.localizedDescription)"
-            }
+            guard let newActivity = try? Activity.request(
+                attributes: DesignActivityAttributes(),
+                content: ActivityContent(state: content, staleDate: nil),
+                pushType: nil
+            ) else { return }
+            activity = newActivity
         }
     }
 
@@ -342,11 +344,10 @@ struct DesignerView: View {
             await activity.end(nil, dismissalPolicy: .immediate)
             updateTask?.cancel()
             self.activity = nil
-            note = "已停止"
         }
     }
 
-    /// 活动运行中改文字或换图，自动同步，不需要额外的“更新”按钮。
+    /// 运行中改文字或换图，自动同步。
     private func scheduleUpdate(for content: DesignActivityAttributes.ContentState) {
         updateTask?.cancel()
         updateTask = Task { @MainActor in
