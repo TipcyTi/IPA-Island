@@ -28,6 +28,11 @@ enum Palette {
         dynamic(light: rgb(0xE7E9E2), dark: rgb(0x242424))
     }
 
+    /// 弹窗卡片底色
+    static var card: Color {
+        dynamic(light: rgb(0xF1F2EA), dark: rgb(0x1E1E1E))
+    }
+
     /// 主文字
     static var ink: Color { Color(uiColor: .label) }
 

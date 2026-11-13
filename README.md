@@ -1,4 +1,4 @@
-# Live Activity Designer
+# Mi Island
 
 一个 SwiftUI iOS 示例工程：在 App 里**自己设计实时活动（Live Activity）**，通过 ActivityKit（系统级 API）把它显示在锁屏和灵动岛上。
 

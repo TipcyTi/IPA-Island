@@ -97,7 +97,7 @@ struct DesignerView: View {
 
     private func topBar(_ m: Metrics) -> some View {
         HStack(spacing: m.size(6)) {
-            chip("MyApp", m)
+            chip("Mi Island", m)
 
             Text("/")
                 .font(.system(size: m.metaText))
