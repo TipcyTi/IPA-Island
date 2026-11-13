@@ -25,10 +25,9 @@ struct Metrics {
     var fieldHeight: CGFloat { ratio(0.125) }
     var fieldRadius: CGFloat { ratio(0.018) }
     var blockRadius: CGFloat { ratio(0.02) }
-    var gap: CGFloat { ratio(0.05) }
+    /// 页边距、行间距、按钮间距、底部留白，全部用这同一个值
+    var gap: CGFloat { margin }
     var squareSide: CGFloat { ratio(0.44) }
-    var columnGap: CGFloat { ratio(0.068) }
-    var buttonGap: CGFloat { ratio(0.034) }
     var bodySize: CGFloat { ratio(0.04) }
     var labelSize: CGFloat { ratio(0.042) }
 }
@@ -107,20 +106,20 @@ struct DesignerView: View {
 
                     Spacer().frame(height: m.gap)
 
-                    HStack(alignment: .top, spacing: m.columnGap) {
+                    HStack(alignment: .top, spacing: m.gap) {
                         cover(m)
 
-                        VStack(spacing: m.buttonGap) {
+                        VStack(spacing: m.gap) {
                             actionButton("启动", m, filled: true) { start() }
                             actionButton("停止", m, filled: false) { stop() }
                         }
                         .frame(
-                            width: m.width - m.margin * 2 - m.squareSide - m.columnGap,
+                            width: m.width - m.margin * 2 - m.squareSide - m.gap,
                             height: m.squareSide
                         )
                     }
 
-                    Spacer().frame(height: m.ratio(0.10))
+                    Spacer().frame(height: m.gap)
                 }
                 .padding(.horizontal, m.margin)
                 .padding(.top, m.ratio(0.10))
