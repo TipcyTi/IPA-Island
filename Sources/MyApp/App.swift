@@ -151,7 +151,7 @@ struct DesignerView: View {
     private func list(_ m: Metrics) -> some View {
         ScrollView(showsIndicators: false) {
             VStack(alignment: .leading, spacing: 0) {
-                imageRow(m)
+                coverButton(m)
                 titleRow(m)
             }
             .padding(.horizontal, m.pagePadding)
@@ -160,28 +160,32 @@ struct DesignerView: View {
         .frame(maxHeight: .infinity)
     }
 
-    private func imageRow(_ m: Metrics) -> some View {
+    /// 一整块正方形，图片按比例铺满裁切，永远占位，选图不会让页面跳动。
+    private func coverButton(_ m: Metrics) -> some View {
         Button {
             showPicker = true
         } label: {
-            HStack(alignment: .top, spacing: m.size(6)) {
-                thumb(m)
+            ZStack {
+                if let image {
+                    Image(uiImage: image)
+                        .resizable()
+                        .scaledToFill()
+                } else {
+                    Palette.chip
 
-                VStack(alignment: .leading, spacing: m.size(4)) {
-                    Text("封面图")
-                        .font(.system(size: m.bodyText))
-                        .foregroundStyle(Palette.ink)
-                    Text(image == nil ? "未选择" : byteText)
-                        .font(.system(size: m.metaText))
+                    Image(systemName: "photo")
+                        .font(.system(size: m.size(28), weight: .light))
                         .foregroundStyle(Palette.caption)
                 }
-
-                Spacer(minLength: 0)
             }
-            .padding(.vertical, m.rowSpacing)
+            .frame(maxWidth: .infinity)
+            .aspectRatio(1, contentMode: .fit)
+            .clipped()
+            .clipShape(RoundedRectangle(cornerRadius: m.radius, style: .continuous))
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .padding(.top, m.size(4))
     }
 
     private func titleRow(_ m: Metrics) -> some View {
@@ -189,27 +193,6 @@ struct DesignerView: View {
             .font(.system(size: m.bodyText))
             .foregroundStyle(Palette.ink)
             .padding(.vertical, m.rowSpacing)
-    }
-
-    @ViewBuilder
-    private func thumb(_ m: Metrics) -> some View {
-        if let image {
-            Image(uiImage: image)
-                .resizable()
-                .scaledToFill()
-                .frame(width: m.thumb, height: m.thumb)
-                .clipped()
-        } else {
-            Image(systemName: "photo")
-                .font(.system(size: m.size(22), weight: .regular))
-                .foregroundStyle(Palette.caption)
-                .frame(width: m.thumb, height: m.thumb)
-                .background(Palette.chip)
-        }
-    }
-
-    private var byteText: String {
-        "\(max(1, imageBase64.count / 1024)) KB"
     }
 
     // MARK: - 底栏
