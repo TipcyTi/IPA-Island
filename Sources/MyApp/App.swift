@@ -161,7 +161,9 @@ struct DesignerView: View {
     // MARK: - 输入框
 
     private func field(_ m: Metrics) -> some View {
-        ZStack(alignment: .leading) {
+        let width = m.width - m.margin * 2
+
+        return ZStack(alignment: .leading) {
             RoundedRectangle(cornerRadius: m.fieldRadius, style: .continuous)
                 .fill(Palette.chip)
 
@@ -171,8 +173,9 @@ struct DesignerView: View {
                 .foregroundStyle(Palette.ink)
                 .padding(.leading, m.ratio(0.038))
                 .padding(.trailing, m.ratio(0.045))
+                .frame(maxWidth: .infinity, alignment: .leading)
         }
-        .frame(height: m.fieldHeight)
+        .frame(width: width, height: m.fieldHeight)
         .clipShape(RoundedRectangle(cornerRadius: m.fieldRadius, style: .continuous))
     }
 
