@@ -40,7 +40,6 @@ struct RootView: View {
                             )
                     }
                     .buttonStyle(.plain)
-                    .disabled(busy)
 
                     if !message.isEmpty {
                         Text(message)
@@ -50,7 +49,6 @@ struct RootView: View {
                             .padding(.horizontal, m.margin)
                     }
                 }
-                .opacity(busy ? 0.6 : 1)
             }
         }
     }
