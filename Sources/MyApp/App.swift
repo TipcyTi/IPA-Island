@@ -56,7 +56,7 @@ struct DesignerView: View {
             let m = Metrics(width: geo.size.width)
 
             ZStack {
-                Palette.canvas.ignoresSafeArea()
+                backdrop(m)
 
                 VStack(alignment: .leading, spacing: 0) {
                     Text("Island")
@@ -102,6 +102,26 @@ struct DesignerView: View {
         .onChange(of: state) { _, newState in
             guard running else { return }
             scheduleUpdate(for: newState)
+        }
+    }
+
+    // MARK: - 背景
+
+    /// 选图后自动高斯模糊、铺满整屏；没图时就是纯底色。
+    @ViewBuilder
+    private func backdrop(_ m: Metrics) -> some View {
+        if let image {
+            Image(uiImage: image)
+                .resizable()
+                .scaledToFill()
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .blur(radius: m.ratio(0.10))
+                .overlay(Palette.canvas.opacity(0.55))
+                .clipped()
+                .ignoresSafeArea()
+                .allowsHitTesting(false)
+        } else {
+            Palette.canvas.ignoresSafeArea()
         }
     }
 
