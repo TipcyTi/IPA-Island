@@ -36,6 +36,11 @@ enum Palette {
     /// 主文字
     static var ink: Color { Color(uiColor: .label) }
 
+    /// 锁屏字标：浅色纯黑，深色纯白
+    static var wordmark: Color {
+        dynamic(light: rgb(0x000000), dark: rgb(0xFFFFFF))
+    }
+
     /// 说明文字
     static var caption: Color {
         dynamic(light: rgb(0x7B7D75), dark: rgb(0x8C8C8C))
