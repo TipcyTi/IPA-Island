@@ -33,8 +33,30 @@ struct Metrics {
     var labelSize: CGFloat { ratio(0.042) }
 }
 
+/// 封面图落盘，杀进程后还在。
+enum CoverStore {
+    static var url: URL {
+        FileManager.default
+            .urls(for: .documentDirectory, in: .userDomainMask)[0]
+            .appendingPathComponent("mi.island.cover.jpg")
+    }
+
+    static func save(_ data: Data) {
+        try? data.write(to: url, options: .atomic)
+    }
+
+    static func load() -> Data? {
+        try? Data(contentsOf: url)
+    }
+
+    static func clear() {
+        try? FileManager.default.removeItem(at: url)
+    }
+}
+
 struct DesignerView: View {
-    @State private var title = "进行中"
+    @AppStorage("mi.island.title") private var title = "Island"
+
     @State private var photoItem: PhotosPickerItem?
     @State private var showPicker = false
     @State private var image: UIImage?
@@ -42,9 +64,19 @@ struct DesignerView: View {
     @State private var activity: Activity<DesignActivityAttributes>?
     @State private var updateTask: Task<Void, Never>?
 
+    init() {
+        if let data = CoverStore.load(), let saved = UIImage(data: data) {
+            _image = State(initialValue: saved)
+        }
+    }
+
+    private var displayTitle: String {
+        title.isEmpty ? "Island" : title
+    }
+
     private var state: DesignActivityAttributes.ContentState {
         DesignActivityAttributes.ContentState(
-            title: title,
+            title: displayTitle,
             imageBase64: imageBase64
         )
     }
@@ -95,6 +127,7 @@ struct DesignerView: View {
             }
         }
         .photosPicker(isPresented: $showPicker, selection: $photoItem, matching: .images)
+        .onAppear { restoreThumbnail() }
         .onChange(of: photoItem) { _, item in
             guard let item else { return }
             Task { @MainActor in await loadImage(from: item) }
@@ -128,15 +161,19 @@ struct DesignerView: View {
     // MARK: - 输入框
 
     private func field(_ m: Metrics) -> some View {
-        TextField("Text", text: $title)
-            .font(.system(size: m.bodySize))
-            .foregroundStyle(Palette.ink)
-            .padding(.horizontal, m.ratio(0.038))
-            .frame(height: m.fieldHeight)
-            .background(
-                RoundedRectangle(cornerRadius: m.fieldRadius, style: .continuous)
-                    .fill(Palette.chip)
-            )
+        ZStack(alignment: .leading) {
+            RoundedRectangle(cornerRadius: m.fieldRadius, style: .continuous)
+                .fill(Palette.chip)
+
+            TextField("Island", text: $title)
+                .textFieldStyle(.plain)
+                .font(.system(size: m.bodySize))
+                .foregroundStyle(Palette.ink)
+                .padding(.leading, m.ratio(0.038))
+                .padding(.trailing, m.ratio(0.045))
+        }
+        .frame(height: m.fieldHeight)
+        .clipShape(RoundedRectangle(cornerRadius: m.fieldRadius, style: .continuous))
     }
 
     // MARK: - 图片
@@ -204,19 +241,25 @@ struct DesignerView: View {
               let picked = UIImage(data: data) else { return }
 
         image = picked
+        imageBase64 = makeThumbnail(from: picked)?.base64EncodedString() ?? ""
 
-        guard let thumbnail = makeThumbnail(from: picked) else {
-            imageBase64 = ""
-            return
+        if let stored = downscale(picked, to: 1600, quality: 0.85) {
+            CoverStore.save(stored)
         }
-
-        imageBase64 = thumbnail.base64EncodedString()
     }
 
     private func clearImage() {
         image = nil
         imageBase64 = ""
         photoItem = nil
+        CoverStore.clear()
+    }
+
+    /// 冷启动时把落盘的封面读回来，并补上实时活动要用的缩略图。
+    @MainActor
+    private func restoreThumbnail() {
+        guard let image, imageBase64.isEmpty else { return }
+        imageBase64 = makeThumbnail(from: image)?.base64EncodedString() ?? ""
     }
 
     /// 实时活动状态有 4KB 上限，只能放缩略图：逐步压到 ≤1600 字节。

@@ -90,29 +90,38 @@ struct DesignActivityWidget: Widget {
             LockScreenView(context: context)
         } dynamicIsland: { context in
             let image = decode(context.state.imageBase64)
+            let coverSide: CGFloat = 36
+            let regionWidth: CGFloat = 46
 
             return DynamicIsland {
-                // 左边：图片
+                // 左边：正方形小图，宽度刚好放下
                 DynamicIslandExpandedRegion(.leading) {
-                    if let image {
-                        Image(uiImage: image)
-                            .resizable()
-                            .scaledToFill()
-                            .frame(width: 36, height: 36)
-                            .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
-                            .padding(.leading, 8)
+                    Group {
+                        if let image {
+                            Image(uiImage: image)
+                                .resizable()
+                                .scaledToFill()
+                                .frame(width: coverSide, height: coverSide)
+                                .clipShape(
+                                    RoundedRectangle(cornerRadius: coverSide * 0.28, style: .continuous)
+                                )
+                        } else {
+                            RoundedRectangle(cornerRadius: coverSide * 0.28, style: .continuous)
+                                .fill(.white.opacity(0.12))
+                                .frame(width: coverSide, height: coverSide)
+                        }
                     }
+                    .frame(width: regionWidth)
                 }
 
-                // 右边：滚动文本
+                // 右边：与左边等宽，文字在框内滚动
                 DynamicIslandExpandedRegion(.trailing) {
                     MarqueeText(
                         text: context.state.title,
                         font: .headline,
                         color: .primary
                     )
-                    .frame(width: 140, height: 22)
-                    .padding(.trailing, 10)
+                    .frame(width: regionWidth, height: 20)
                 }
             } compactLeading: {
                 if let image {
