@@ -1,8 +1,7 @@
 import LocalAuthentication
 import SwiftUI
 
-/// 冷启动先验证身份：Face ID 优先，失败回落到设备密码。
-/// 布局照 PocketServer 的弹窗：居中卡片 + 底部左右两个半宽按钮。
+/// 冷启动先验证：屏幕正中一个字标，点它唤起 Face ID，失败回落到设备密码。
 struct RootView: View {
     @State private var unlocked = false
     @State private var busy = false
@@ -25,59 +24,35 @@ struct RootView: View {
 
             ZStack {
                 Palette.canvas.ignoresSafeArea()
-                dialog(m)
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-        }
-    }
 
-    private func dialog(_ m: Metrics) -> some View {
-        VStack(spacing: 0) {
-            Spacer(minLength: 0)
+                VStack(spacing: m.ratio(0.03)) {
+                    Button {
+                        authenticate()
+                    } label: {
+                        Text("Face ID")
+                            .font(.system(size: m.ratio(0.16), weight: .black))
+                            .foregroundStyle(Palette.ink)
+                            .shadow(
+                                color: .black.opacity(0.22),
+                                radius: m.ratio(0.02),
+                                x: 0,
+                                y: m.ratio(0.008)
+                            )
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(busy)
 
-            Text(message.isEmpty ? "需要验证身份" : message)
-                .font(.system(size: m.size(15), weight: .medium))
-                .foregroundStyle(Palette.ink)
-                .multilineTextAlignment(.center)
-                .padding(.horizontal, m.size(18))
-
-            Spacer(minLength: 0)
-
-            HStack(spacing: m.size(0.5)) {
-                dialogButton("取消", m) {
-                    message = "已取消，点 Face ID 重新验证"
+                    if !message.isEmpty {
+                        Text(message)
+                            .font(.system(size: m.ratio(0.036)))
+                            .foregroundStyle(Palette.caption)
+                            .multilineTextAlignment(.center)
+                            .padding(.horizontal, m.margin)
+                    }
                 }
-
-                dialogButton("Face ID", m) {
-                    authenticate()
-                }
+                .opacity(busy ? 0.6 : 1)
             }
-            .frame(height: m.size(44))
         }
-        .frame(width: m.size(260), height: m.size(200))
-        .background(
-            RoundedRectangle(cornerRadius: m.size(16), style: .continuous)
-                .fill(Palette.card)
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: m.size(16), style: .continuous)
-                .strokeBorder(Palette.hairline, lineWidth: 0.5)
-        )
-        .clipShape(RoundedRectangle(cornerRadius: m.size(16), style: .continuous))
-        .shadow(color: .black.opacity(0.12), radius: m.size(18), x: 0, y: m.size(8))
-        .opacity(busy ? 0.8 : 1)
-    }
-
-    private func dialogButton(_ label: String, _ m: Metrics, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            Text(label)
-                .font(.system(size: m.size(15), weight: .medium))
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .foregroundStyle(Palette.ink)
-                .background(Palette.chip)
-        }
-        .buttonStyle(.plain)
-        .disabled(busy)
     }
 
     private func authenticate() {
@@ -106,7 +81,7 @@ struct RootView: View {
                 if success {
                     unlocked = true
                 } else {
-                    message = "验证未通过，点 Face ID 重试"
+                    message = "验证未通过，点一下重试"
                 }
             }
         }

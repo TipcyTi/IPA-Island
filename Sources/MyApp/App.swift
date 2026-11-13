@@ -12,24 +12,25 @@ struct MyApp: App {
     }
 }
 
-/// 所有尺寸都按屏幕宽度等比缩放，不使用固定 px。
+/// 所有尺寸都取屏幕宽度的比例，换机型自动等比缩放。
 struct Metrics {
-    let scale: CGFloat
+    let width: CGFloat
 
-    init(width: CGFloat) {
-        let base: CGFloat = 390
-        scale = min(max(width / base, 0.8), 1.3)
-    }
+    init(width: CGFloat) { self.width = width }
 
-    func size(_ value: CGFloat) -> CGFloat { value * scale }
+    func ratio(_ value: CGFloat) -> CGFloat { width * value }
 
-    var pagePadding: CGFloat { size(16) }
-    var rowSpacing: CGFloat { size(16) }
-    var thumb: CGFloat { size(64) }
-    var radius: CGFloat { size(8) }
-    var chipText: CGFloat { size(14) }
-    var bodyText: CGFloat { size(16) }
-    var metaText: CGFloat { size(14) }
+    var margin: CGFloat { ratio(0.063) }
+    var titleSize: CGFloat { ratio(0.155) }
+    var fieldHeight: CGFloat { ratio(0.125) }
+    var fieldRadius: CGFloat { ratio(0.018) }
+    var blockRadius: CGFloat { ratio(0.02) }
+    var gap: CGFloat { ratio(0.05) }
+    var squareSide: CGFloat { ratio(0.44) }
+    var columnGap: CGFloat { ratio(0.068) }
+    var buttonGap: CGFloat { ratio(0.034) }
+    var bodySize: CGFloat { ratio(0.04) }
+    var labelSize: CGFloat { ratio(0.042) }
 }
 
 struct DesignerView: View {
@@ -55,13 +56,42 @@ struct DesignerView: View {
             let m = Metrics(width: geo.size.width)
 
             ZStack {
-                backdrop(m)
+                Palette.canvas.ignoresSafeArea()
 
-                VStack(spacing: 0) {
-                    topBar(m)
-                    list(m)
-                    bottomBar(m)
+                VStack(alignment: .leading, spacing: 0) {
+                    Text("Island")
+                        .font(.system(size: m.titleSize, weight: .black))
+                        .foregroundStyle(Palette.ink)
+                        .shadow(
+                            color: .black.opacity(0.22),
+                            radius: m.ratio(0.02),
+                            x: 0,
+                            y: m.ratio(0.008)
+                        )
+
+                    Spacer(minLength: 0)
+
+                    field(m)
+
+                    Spacer().frame(height: m.gap)
+
+                    HStack(alignment: .top, spacing: m.columnGap) {
+                        cover(m)
+
+                        VStack(spacing: m.buttonGap) {
+                            actionButton("启动", m, filled: true) { start() }
+                            actionButton("停止", m, filled: false) { stop() }
+                        }
+                        .frame(
+                            width: m.width - m.margin * 2 - m.squareSide - m.columnGap,
+                            height: m.squareSide
+                        )
+                    }
+
+                    Spacer().frame(height: m.ratio(0.10))
                 }
+                .padding(.horizontal, m.margin)
+                .padding(.top, m.ratio(0.10))
             }
         }
         .photosPicker(isPresented: $showPicker, selection: $photoItem, matching: .images)
@@ -75,93 +105,23 @@ struct DesignerView: View {
         }
     }
 
-    // MARK: - 背景
+    // MARK: - 输入框
 
-    @ViewBuilder
-    private func backdrop(_ m: Metrics) -> some View {
-        if let image {
-            Image(uiImage: image)
-                .resizable()
-                .scaledToFill()
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .blur(radius: m.size(40))
-                .overlay(Palette.canvas.opacity(0.58))
-                .clipped()
-                .ignoresSafeArea()
-        } else {
-            Palette.canvas.ignoresSafeArea()
-        }
-    }
-
-    // MARK: - 顶栏
-
-    private func topBar(_ m: Metrics) -> some View {
-        HStack(spacing: m.size(6)) {
-            chip("Mi Island", m)
-
-            Text("/")
-                .font(.system(size: m.metaText))
-                .foregroundStyle(Palette.caption)
-
-            chip("实时活动", m)
-
-            Spacer(minLength: m.size(8))
-
-            Menu {
-                Button {
-                    showPicker = true
-                } label: {
-                    Label(image == nil ? "选择封面" : "更换封面", systemImage: "photo")
-                }
-
-                if image != nil {
-                    Button(role: .destructive) {
-                        clearImage()
-                    } label: {
-                        Label("移除封面", systemImage: "trash")
-                    }
-                }
-            } label: {
-                Image(systemName: "ellipsis")
-                    .font(.system(size: m.size(13), weight: .semibold))
-                    .foregroundStyle(Palette.ink)
-                    .frame(width: m.size(30), height: m.size(30))
-                    .overlay(
-                        Circle().strokeBorder(Palette.ink, lineWidth: m.size(1.5))
-                    )
-            }
-        }
-        .padding(m.pagePadding)
-    }
-
-    private func chip(_ text: String, _ m: Metrics) -> some View {
-        Text(text)
-            .font(.system(size: m.chipText, weight: .semibold))
+    private func field(_ m: Metrics) -> some View {
+        TextField("Text", text: $title)
+            .font(.system(size: m.bodySize))
             .foregroundStyle(Palette.ink)
-            .padding(.horizontal, m.size(8))
-            .padding(.vertical, m.size(8))
+            .padding(.horizontal, m.ratio(0.038))
+            .frame(height: m.fieldHeight)
             .background(
-                RoundedRectangle(cornerRadius: m.radius, style: .continuous)
+                RoundedRectangle(cornerRadius: m.fieldRadius, style: .continuous)
                     .fill(Palette.chip)
             )
     }
 
-    // MARK: - 列表
+    // MARK: - 图片
 
-    private func list(_ m: Metrics) -> some View {
-        ScrollView(showsIndicators: false) {
-            VStack(alignment: .leading, spacing: 0) {
-                coverButton(m)
-                titleRow(m)
-            }
-            .padding(.horizontal, m.pagePadding)
-            .padding(.bottom, m.size(24))
-        }
-        .frame(maxHeight: .infinity)
-    }
-
-    /// 一整块正方形，图片按比例铺满裁切，永远占位，选图不会让页面跳动。
-    private func coverButton(_ m: Metrics) -> some View {
+    private func cover(_ m: Metrics) -> some View {
         Button {
             showPicker = true
         } label: {
@@ -173,67 +133,47 @@ struct DesignerView: View {
                 } else {
                     Palette.chip
 
-                    Image(systemName: "photo")
-                        .font(.system(size: m.size(28), weight: .light))
-                        .foregroundStyle(Palette.caption)
+                    Text("选择图片")
+                        .font(.system(size: m.bodySize, weight: .bold))
+                        .foregroundStyle(Palette.ink)
                 }
             }
-            .frame(maxWidth: .infinity)
-            .aspectRatio(1, contentMode: .fit)
+            .frame(width: m.squareSide, height: m.squareSide)
             .clipped()
-            .clipShape(RoundedRectangle(cornerRadius: m.radius, style: .continuous))
+            .clipShape(RoundedRectangle(cornerRadius: m.blockRadius, style: .continuous))
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .padding(.top, m.size(4))
-    }
-
-    private func titleRow(_ m: Metrics) -> some View {
-        TextField("输入文字", text: $title)
-            .font(.system(size: m.bodyText))
-            .foregroundStyle(Palette.ink)
-            .padding(.vertical, m.rowSpacing)
-    }
-
-    // MARK: - 底栏
-
-    private func bottomBar(_ m: Metrics) -> some View {
-        HStack(spacing: m.size(8)) {
-            barButton("启动实时活动", filled: true, enabled: !running, m) { start() }
-            barButton("停止", filled: false, enabled: running, m) { stop() }
-        }
-        .padding(m.size(8))
-        .background {
-            if image == nil {
-                Palette.canvas
-            } else {
-                Rectangle().fill(.ultraThinMaterial)
+        .contextMenu {
+            if image != nil {
+                Button(role: .destructive) {
+                    clearImage()
+                } label: {
+                    Label("移除封面", systemImage: "trash")
+                }
             }
         }
-        .shadow(color: .black.opacity(0.10), radius: m.size(14), x: 0, y: -m.size(4))
     }
 
-    private func barButton(
+    // MARK: - 按钮
+
+    private func actionButton(
         _ label: String,
-        filled: Bool,
-        enabled: Bool,
         _ m: Metrics,
+        filled: Bool,
         action: @escaping () -> Void
     ) -> some View {
         Button(action: action) {
             Text(label)
-                .font(.system(size: m.size(15), weight: .medium))
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, m.size(10))
+                .font(.system(size: m.labelSize, weight: .bold))
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .foregroundStyle(filled ? Palette.canvas : Palette.ink)
                 .background(
-                    RoundedRectangle(cornerRadius: m.radius, style: .continuous)
+                    RoundedRectangle(cornerRadius: m.blockRadius, style: .continuous)
                         .fill(filled ? Palette.ink : Palette.chip)
                 )
         }
         .buttonStyle(.plain)
-        .disabled(!enabled)
-        .opacity(enabled ? 1 : 0.4)
     }
 
     // MARK: - 图片处理
