@@ -24,15 +24,13 @@ struct Metrics {
     /// .main-content 宽 90%
     var contentWidth: CGFloat { ratio(0.90) }
     /// 图片与下方文字行的宽度
-    var blockWidth: CGFloat { ratio(0.62) }
+    var blockWidth: CGFloat { ratio(0.68) }
     /// --Ti-image-radius: 50px
     var imageRadius: CGFloat { ratio(0.128) }
     /// .content-layer gap: 15px
-    var gap: CGFloat { ratio(0.038) }
+    var gap: CGFloat { ratio(0.045) }
     /// .text-line 26px
     var textSize: CGFloat { ratio(0.067) }
-    /// .text-edit-trigger 45px 缩到 0.09
-    var actionSize: CGFloat { ratio(0.09) }
     /// translate 下移 20px
     var verticalOffset: CGFloat { ratio(0.05) }
 }
@@ -126,8 +124,6 @@ struct DesignerView: View {
             TextField("Island", text: $draft)
             Button("取消", role: .cancel) {}
             Button("确定") { title = draft }
-        } message: {
-            Text("清空后自动显示 Island")
         }
     }
 
@@ -201,15 +197,15 @@ struct DesignerView: View {
                         .scaledToFill()
                 } else {
                     Palette.chip
-
-                    Text("选择图片")
-                        .font(.system(size: m.ratio(0.04), weight: .bold))
-                        .foregroundStyle(ink)
                 }
             }
             .frame(width: m.blockWidth, height: m.blockWidth)
             .clipped()
             .clipShape(RoundedRectangle(cornerRadius: m.imageRadius, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: m.imageRadius, style: .continuous)
+                    .strokeBorder(ink.opacity(image == nil ? 0.12 : 0), lineWidth: 1)
+            )
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
