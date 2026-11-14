@@ -36,7 +36,7 @@ private struct CoverPressStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
             .scaleEffect(configuration.isPressed ? 0.975 : 1)
-            .animation(.spring(response: 0.30, dampingFraction: 0.7), value: configuration.isPressed)
+            .animation(.spring(response: 0.24, dampingFraction: 0.75), value: configuration.isPressed)
     }
 }
 
@@ -73,6 +73,7 @@ struct DesignerView: View {
     @State private var editing = false
     @State private var draft = ""
     @State private var image: UIImage?
+    @State private var backdropImage: UIImage?
     @State private var imageBase64 = ""
     @State private var activity: Activity<DesignActivityAttributes>?
     @State private var updateTask: Task<Void, Never>?
@@ -82,6 +83,7 @@ struct DesignerView: View {
     init() {
         if let data = CoverStore.load(), let saved = UIImage(data: data) {
             _image = State(initialValue: saved)
+            _backdropImage = State(initialValue: Self.backdropThumbnail(from: saved))
         }
     }
 
@@ -178,8 +180,8 @@ struct DesignerView: View {
     private func header(_ m: Metrics) -> some View {
         HStack(spacing: 0) {
             Text("MI ISLAND")
-                .font(.system(size: m.ratio(0.066), weight: .black))
-                .tracking(m.ratio(0.002))
+                .font(.system(size: m.ratio(0.090), weight: .black))
+                .tracking(m.ratio(0.0015))
                 .foregroundStyle(Palette.ink)
 
             Spacer(minLength: 0)
@@ -200,7 +202,6 @@ struct DesignerView: View {
                             .strokeBorder(Palette.hairline, lineWidth: 1)
                             .opacity(image == nil ? 0 : 1)
                     )
-                    .shadow(color: shadowColor, radius: 24, x: 0, y: 12)
                     .contentShape(RoundedRectangle(cornerRadius: m.coverRadius, style: .continuous))
             }
             .buttonStyle(CoverPressStyle())
@@ -355,12 +356,13 @@ struct DesignerView: View {
         .background(
             RoundedRectangle(cornerRadius: m.ratio(0.065), style: .continuous)
                 .fill(Palette.card)
+                .shadow(color: .black.opacity(0.16), radius: 22, x: 0, y: 10)
         )
         .overlay(
             RoundedRectangle(cornerRadius: m.ratio(0.065), style: .continuous)
                 .strokeBorder(Palette.hairline, lineWidth: 1)
         )
-        .shadow(color: .black.opacity(0.18), radius: 30, x: 0, y: 12)
+        .compositingGroup()
     }
 
     private func sourceRow(
@@ -390,13 +392,13 @@ struct DesignerView: View {
 
     private func presentSourceSheet() {
         titleFocused = false
-        withAnimation(.spring(response: 0.38, dampingFraction: 0.86)) {
+        withAnimation(.spring(response: 0.34, dampingFraction: 0.90)) {
             showSourceSheet = true
         }
     }
 
     private func dismissSourceSheet() {
-        withAnimation(.spring(response: 0.30, dampingFraction: 0.90)) {
+        withAnimation(.easeOut(duration: 0.22)) {
             showSourceSheet = false
         }
     }
@@ -542,14 +544,15 @@ struct DesignerView: View {
             ZStack {
                 Palette.canvas
 
-                if let image {
-                    Image(uiImage: image)
+                if let backdropImage {
+                    Image(uiImage: backdropImage)
                         .resizable()
                         .scaledToFill()
                         .frame(width: proxy.size.width, height: proxy.size.height)
-                        .blur(radius: m.ratio(0.13), opaque: true)
+                        .transition(.opacity)
 
                     Palette.canvas.opacity(colorScheme == .dark ? 0.82 : 0.80)
+                        .transition(.opacity)
                 }
             }
             .clipped()
@@ -575,7 +578,7 @@ struct DesignerView: View {
 
     /// 等动作面板收起后再拉起系统选择器，避免两个模态互相抢占。
     private func openPicker(_ present: @escaping () -> Void) {
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.30, execute: present)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.24, execute: present)
     }
 
     @MainActor
@@ -601,19 +604,27 @@ struct DesignerView: View {
     }
 
     private func apply(_ picked: UIImage) {
-        withAnimation(.easeInOut(duration: 0.35)) {
-            image = picked
-        }
-        imageBase64 = makeThumbnail(from: picked)?.base64EncodedString() ?? ""
+        let stored = downscale(picked, to: 1600, quality: 0.85)
+        let display = stored.flatMap { UIImage(data: $0) } ?? picked
+        let small = Self.backdropThumbnail(from: display)
+        let base64 = makeThumbnail(from: display)?.base64EncodedString() ?? ""
 
-        if let stored = downscale(picked, to: 1600, quality: 0.85) {
+        withAnimation(.easeInOut(duration: 0.32)) {
+            image = display
+            backdropImage = small
+        }
+
+        imageBase64 = base64
+
+        if let stored {
             CoverStore.save(stored)
         }
     }
 
     private func clearImage() {
-        withAnimation(.easeInOut(duration: 0.30)) {
+        withAnimation(.easeInOut(duration: 0.28)) {
             image = nil
+            backdropImage = nil
         }
         imageBase64 = ""
         photoItem = nil
@@ -623,8 +634,37 @@ struct DesignerView: View {
     /// 冷启动时把落盘的封面读回来，并补上实时活动要用的缩略图。
     @MainActor
     private func restoreThumbnail() {
-        guard let image, imageBase64.isEmpty else { return }
-        imageBase64 = makeThumbnail(from: image)?.base64EncodedString() ?? ""
+        guard let image else { return }
+
+        if imageBase64.isEmpty {
+            imageBase64 = makeThumbnail(from: image)?.base64EncodedString() ?? ""
+        }
+
+        if backdropImage == nil {
+            backdropImage = Self.backdropThumbnail(from: image)
+        }
+    }
+
+    /// 背景只需要一张很小的纹理，避免在大图上做实时模糊。
+    private static func backdropThumbnail(from image: UIImage) -> UIImage? {
+        let maxSide: CGFloat = 480
+        let width = image.size.width
+        let height = image.size.height
+        guard width > 0, height > 0 else { return nil }
+
+        let factor = min(maxSide / max(width, height), 1)
+        let size = CGSize(
+            width: max(1, (width * factor).rounded()),
+            height: max(1, (height * factor).rounded())
+        )
+
+        let format = UIGraphicsImageRendererFormat.default()
+        format.scale = 1
+
+        let renderer = UIGraphicsImageRenderer(size: size, format: format)
+        return renderer.image { _ in
+            image.draw(in: CGRect(origin: .zero, size: size))
+        }
     }
 
     /// 实时活动状态有 4KB 上限，只能放缩略图：逐步压到 ≤1600 字节。
