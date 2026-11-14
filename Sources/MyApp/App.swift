@@ -120,43 +120,46 @@ struct DesignerView: View {
     }
 
     private func content(_ m: Metrics) -> some View {
-        VStack(alignment: .leading, spacing: m.gap) {
-            cover(m)
+        VStack(spacing: 0) {
+            Spacer(minLength: 0)
 
-            HStack(alignment: .firstTextBaseline, spacing: m.gap) {
-                Button {
-                    draft = title
-                    editing = true
-                } label: {
-                    Text(displayTitle)
-                        .font(.system(size: m.titleSize, weight: .black))
-                        .foregroundStyle(fg)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.5)
-                }
-                .buttonStyle(.plain)
+            VStack(alignment: .leading, spacing: m.gap) {
+                cover(m)
 
-                Spacer(minLength: 0)
-
-                Button {
-                    if running {
-                        stop()
-                    } else {
-                        start()
+                HStack(alignment: .firstTextBaseline, spacing: m.gap) {
+                    Button {
+                        draft = title
+                        editing = true
+                    } label: {
+                        Text(displayTitle)
+                            .font(.system(size: m.titleSize, weight: .black))
+                            .foregroundStyle(fg)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.5)
                     }
-                } label: {
-                    Text(running ? "停止" : "启动")
-                        .font(.system(size: m.actionSize, weight: .black))
-                        .foregroundStyle(fg)
-                        .opacity(running ? 1 : 0.45)
+                    .buttonStyle(.plain)
+
+                    Spacer(minLength: 0)
+
+                    Button {
+                        if running {
+                            stop()
+                        } else {
+                            start()
+                        }
+                    } label: {
+                        Text(running ? "停止" : "启动")
+                            .font(.system(size: m.actionSize, weight: .black))
+                            .foregroundStyle(fg)
+                            .opacity(running ? 1 : 0.45)
+                    }
+                    .buttonStyle(.plain)
                 }
-                .buttonStyle(.plain)
             }
 
             Spacer(minLength: 0)
         }
         .padding(.horizontal, m.margin)
-        .padding(.top, m.topInset)
     }
 
     // MARK: - 背景
