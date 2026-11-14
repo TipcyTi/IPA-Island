@@ -21,16 +21,12 @@ struct Metrics {
 
     func ratio(_ value: CGFloat) -> CGFloat { width * value }
 
-    var margin: CGFloat { ratio(0.063) }
-    var titleSize: CGFloat { ratio(0.155) }
-    var fieldHeight: CGFloat { ratio(0.125) }
-    var fieldRadius: CGFloat { ratio(0.018) }
+    /// 图片两侧留白，同时决定左上文本与右上开关的左右边界
+    var margin: CGFloat { ratio(0.07) }
+    var titleSize: CGFloat { ratio(0.12) }
+    var imageSide: CGFloat { ratio(0.86) }
     var blockRadius: CGFloat { ratio(0.02) }
-    /// 页边距、行间距、按钮间距、底部留白，全部用这同一个值
-    var gap: CGFloat { margin }
-    var squareSide: CGFloat { ratio(0.44) }
-    var bodySize: CGFloat { ratio(0.04) }
-    var labelSize: CGFloat { ratio(0.042) }
+    var gap: CGFloat { ratio(0.04) }
 }
 
 /// 封面图落盘，杀进程后还在。
@@ -60,6 +56,8 @@ struct DesignerView: View {
 
     @State private var photoItem: PhotosPickerItem?
     @State private var showPicker = false
+    @State private var editing = false
+    @State private var draft = ""
     @State private var image: UIImage?
     @State private var imageBase64 = ""
     @State private var imageIsDark = false
@@ -94,6 +92,19 @@ struct DesignerView: View {
     private var fg: Color { isDarkBackdrop ? .white : .black }
     private var bg: Color { isDarkBackdrop ? .black : .white }
 
+    private var toggleBinding: Binding<Bool> {
+        Binding(
+            get: { running },
+            set: { on in
+                if on {
+                    start()
+                } else {
+                    stop()
+                }
+            }
+        )
+    }
+
     var body: some View {
         GeometryReader { geo in
             let m = Metrics(width: geo.size.width)
@@ -114,38 +125,52 @@ struct DesignerView: View {
             guard running else { return }
             scheduleUpdate(for: newState)
         }
+        .alert("实时活动文本", isPresented: $editing) {
+            TextField("Island", text: $draft)
+            Button("取消", role: .cancel) {}
+            Button("确定") { title = draft }
+        } message: {
+            Text("清空后自动显示 Island")
+        }
     }
 
     private func content(_ m: Metrics) -> some View {
-        VStack(alignment: .leading, spacing: 0) {
-            Text("Island")
-                .font(.system(size: m.titleSize, weight: .black))
-                .foregroundStyle(fg)
-                .shadow(color: .black.opacity(0.22), radius: m.ratio(0.02), x: 0, y: m.ratio(0.008))
+        VStack(spacing: 0) {
+            HStack(spacing: m.gap) {
+                Button {
+                    draft = title
+                    editing = true
+                } label: {
+                    Text(displayTitle)
+                        .font(.system(size: m.titleSize, weight: .black))
+                        .foregroundStyle(fg)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.5)
+                        .shadow(
+                            color: .black.opacity(0.22),
+                            radius: m.ratio(0.02),
+                            x: 0,
+                            y: m.ratio(0.008)
+                        )
+                }
+                .buttonStyle(.plain)
+
+                Spacer(minLength: 0)
+
+                Toggle("", isOn: toggleBinding)
+                    .labelsHidden()
+                    .tint(fg)
+                    .scaleEffect(m.ratio(0.0028))
+            }
 
             Spacer(minLength: 0)
 
-            field(m)
+            cover(m)
 
-            Spacer().frame(height: m.gap)
-
-            HStack(alignment: .top, spacing: m.gap) {
-                cover(m)
-
-                VStack(spacing: m.gap) {
-                    actionButton("启动", m, filled: true) { start() }
-                    actionButton("停止", m, filled: false) { stop() }
-                }
-                .frame(
-                    width: m.width - m.margin * 2 - m.squareSide - m.gap,
-                    height: m.squareSide
-                )
-            }
-
-            Spacer().frame(height: m.gap)
+            Spacer(minLength: 0)
         }
         .padding(.horizontal, m.margin)
-        .padding(.top, m.ratio(0.10))
+        .padding(.vertical, m.ratio(0.10))
     }
 
     // MARK: - 背景
@@ -166,31 +191,6 @@ struct DesignerView: View {
         }
     }
 
-    // MARK: - 输入框
-
-    private func field(_ m: Metrics) -> some View {
-        let width = m.width - m.margin * 2
-
-        return ZStack(alignment: .leading) {
-            RoundedRectangle(cornerRadius: m.fieldRadius, style: .continuous)
-                .fill(bg)
-
-            TextField("Island", text: $title)
-                .textFieldStyle(.plain)
-                .font(.system(size: m.bodySize))
-                .foregroundStyle(fg)
-                .padding(.leading, m.ratio(0.038))
-                .padding(.trailing, m.ratio(0.045))
-                .frame(maxWidth: .infinity, alignment: .leading)
-        }
-        .frame(width: width, height: m.fieldHeight)
-        .clipShape(RoundedRectangle(cornerRadius: m.fieldRadius, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: m.fieldRadius, style: .continuous)
-                .strokeBorder(fg.opacity(0.15), lineWidth: 1)
-        )
-    }
-
     // MARK: - 图片
 
     private func cover(_ m: Metrics) -> some View {
@@ -206,11 +206,11 @@ struct DesignerView: View {
                     bg
 
                     Text("选择图片")
-                        .font(.system(size: m.bodySize, weight: .bold))
+                        .font(.system(size: m.ratio(0.04), weight: .bold))
                         .foregroundStyle(fg)
                 }
             }
-            .frame(width: m.squareSide, height: m.squareSide)
+            .frame(width: m.imageSide, height: m.imageSide)
             .clipped()
             .clipShape(RoundedRectangle(cornerRadius: m.blockRadius, style: .continuous))
             .overlay(
@@ -229,32 +229,6 @@ struct DesignerView: View {
                 }
             }
         }
-    }
-
-    // MARK: - 按钮
-
-    private func actionButton(
-        _ label: String,
-        _ m: Metrics,
-        filled: Bool,
-        action: @escaping () -> Void
-    ) -> some View {
-        Button(action: action) {
-            Text(label)
-                .font(.system(size: m.labelSize, weight: .bold))
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .foregroundStyle(filled ? bg : fg)
-                .background(
-                    RoundedRectangle(cornerRadius: m.blockRadius, style: .continuous)
-                        .fill(filled ? fg : bg)
-                )
-                .clipShape(RoundedRectangle(cornerRadius: m.blockRadius, style: .continuous))
-                .overlay(
-                    RoundedRectangle(cornerRadius: m.blockRadius, style: .continuous)
-                        .strokeBorder(fg.opacity(filled ? 0 : 0.2), lineWidth: 1)
-                )
-        }
-        .buttonStyle(.plain)
     }
 
     // MARK: - 图片处理
