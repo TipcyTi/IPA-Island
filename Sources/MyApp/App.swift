@@ -12,7 +12,7 @@ struct MyApp: App {
     }
 }
 
-/// 所有尺寸都取屏幕宽度的比例，换机型自动等比缩放。
+/// 尺寸全部取自 HTML 的比例（以 390pt 宽为基准），换机型等比缩放。
 struct Metrics {
     let width: CGFloat
 
@@ -20,14 +20,20 @@ struct Metrics {
 
     func ratio(_ value: CGFloat) -> CGFloat { width * value }
 
-    /// 图片两侧留白，同时决定文字与开关的左右边界
-    var margin: CGFloat { ratio(0.10) }
-    var imageSide: CGFloat { ratio(0.80) }
-    var titleSize: CGFloat { ratio(0.095) }
-    var actionSize: CGFloat { ratio(0.048) }
-    var gap: CGFloat { ratio(0.055) }
-    var topInset: CGFloat { ratio(0.08) }
-    var blockRadius: CGFloat { ratio(0.02) }
+    /// .main-content 宽 90%
+    var contentWidth: CGFloat { ratio(0.90) }
+    /// .content-image 与 .text-control-container 宽 92%
+    var blockWidth: CGFloat { ratio(0.828) }
+    /// --Ti-image-radius: 50px
+    var imageRadius: CGFloat { ratio(0.128) }
+    /// .content-layer gap: 15px
+    var gap: CGFloat { ratio(0.038) }
+    /// .text-line 26px
+    var textSize: CGFloat { ratio(0.067) }
+    /// .text-edit-trigger 45px 缩到 0.09
+    var actionSize: CGFloat { ratio(0.09) }
+    /// translate 下移 20px
+    var verticalOffset: CGFloat { ratio(0.05) }
 }
 
 /// 封面图落盘，杀进程后还在。
@@ -84,8 +90,7 @@ struct DesignerView: View {
     private var running: Bool { activity != nil }
 
     private var isDark: Bool { colorScheme == .dark }
-    private var fg: Color { isDark ? .white : .black }
-    private var bg: Color { isDark ? .black : .white }
+    private var ink: Color { isDark ? .white : .black }
 
     var body: some View {
         GeometryReader { geo in
@@ -94,7 +99,7 @@ struct DesignerView: View {
             content(m)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .background {
-                    backdrop(m).ignoresSafeArea()
+                    backdrop(m, size: geo.size).ignoresSafeArea()
                 }
         }
         .photosPicker(isPresented: $showPicker, selection: $photoItem, matching: .images)
@@ -119,63 +124,76 @@ struct DesignerView: View {
         }
     }
 
+    // MARK: - 内容
+
     private func content(_ m: Metrics) -> some View {
-        VStack(spacing: 0) {
-            Spacer(minLength: 0)
+        VStack(spacing: m.gap) {
+            cover(m)
 
-            VStack(alignment: .leading, spacing: m.gap) {
-                cover(m)
-
-                HStack(alignment: .firstTextBaseline, spacing: m.gap) {
-                    Button {
-                        draft = title
-                        editing = true
-                    } label: {
-                        Text(displayTitle)
-                            .font(.system(size: m.titleSize, weight: .black))
-                            .foregroundStyle(fg)
-                            .lineLimit(1)
-                            .minimumScaleFactor(0.5)
-                    }
-                    .buttonStyle(.plain)
-
-                    Spacer(minLength: 0)
-
-                    Button {
-                        if running {
-                            stop()
-                        } else {
-                            start()
-                        }
-                    } label: {
-                        Text(running ? "停止" : "启动")
-                            .font(.system(size: m.actionSize, weight: .black))
-                            .foregroundStyle(fg)
-                            .opacity(running ? 1 : 0.45)
-                    }
-                    .buttonStyle(.plain)
+            HStack(alignment: .center, spacing: m.ratio(0.03)) {
+                Button {
+                    draft = title
+                    editing = true
+                } label: {
+                    Text(displayTitle)
+                        .font(.system(size: m.textSize, weight: .black))
+                        .foregroundStyle(ink.opacity(0.85))
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.5)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .shadow(color: .black.opacity(0.18), radius: m.ratio(0.004), x: 0, y: 1)
                 }
-            }
+                .buttonStyle(.plain)
 
-            Spacer(minLength: 0)
+                Button {
+                    if running {
+                        stop()
+                    } else {
+                        start()
+                    }
+                } label: {
+                    Text(running ? "停止" : "启动")
+                        .font(.system(size: m.actionSize, weight: .black))
+                        .foregroundStyle(ink.opacity(running ? 0.75 : 0.45))
+                }
+                .buttonStyle(.plain)
+            }
+            .frame(width: m.blockWidth)
         }
-        .padding(.horizontal, m.margin)
+        .offset(y: m.verticalOffset)
     }
 
-    // MARK: - 背景
+    // MARK: - 背景（模糊图 + 径向遮罩，边缘回到底色）
 
-    /// 模糊封面只淡淡透出来，页面以底色为主。
     @ViewBuilder
-    private func backdrop(_ m: Metrics) -> some View {
+    private func backdrop(_ m: Metrics, size: CGSize) -> some View {
         if let image {
-            Image(uiImage: image)
-                .resizable()
-                .scaledToFill()
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .blur(radius: m.ratio(0.16), opaque: true)
-                .overlay(Palette.canvas.opacity(0.82))
-                .clipped()
-                .allowsHitTesting(false)
+            ZStack {
+                Image(uiImage: image)
+                    .resizable()
+                    .scaledToFill()
+                    .frame(width: size.width, height: size.height)
+                    .blur(radius: m.ratio(0.19))
+                    .brightness(isDark ? -0.05 : -0.22)
+                    .clipped()
+
+                RadialGradient(
+                    stops: [
+                        .init(color: Palette.canvas.opacity(0), location: 0),
+                        .init(color: Palette.canvas.opacity(0), location: 0.30),
+                        .init(color: Palette.canvas.opacity(0.10), location: 0.40),
+                        .init(color: Palette.canvas.opacity(0.30), location: 0.50),
+                        .init(color: Palette.canvas.opacity(0.60), location: 0.60),
+                        .init(color: Palette.canvas.opacity(0.80), location: 0.70),
+                        .init(color: Palette.canvas.opacity(0.90), location: 0.80),
+                        .init(color: Palette.canvas, location: 1.0)
+                    ],
+                    center: .center,
+                    startRadius: 0,
+                    endRadius: max(size.width, size.height) * 0.72
+                )
+            }
+            .ignoresSafeArea()
         } else {
             Palette.canvas
         }
@@ -193,20 +211,16 @@ struct DesignerView: View {
                         .resizable()
                         .scaledToFill()
                 } else {
-                    bg
+                    Palette.chip
 
                     Text("选择图片")
                         .font(.system(size: m.ratio(0.04), weight: .bold))
-                        .foregroundStyle(fg)
+                        .foregroundStyle(ink)
                 }
             }
-            .frame(width: m.imageSide, height: m.imageSide)
+            .frame(width: m.blockWidth, height: m.blockWidth)
             .clipped()
-            .clipShape(RoundedRectangle(cornerRadius: m.blockRadius, style: .continuous))
-            .overlay(
-                RoundedRectangle(cornerRadius: m.blockRadius, style: .continuous)
-                    .strokeBorder(fg.opacity(0.12), lineWidth: 1)
-            )
+            .clipShape(RoundedRectangle(cornerRadius: m.imageRadius, style: .continuous))
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
@@ -307,7 +321,6 @@ struct DesignerView: View {
 
         let content = state
         Task { @MainActor in
-            // 先清掉可能残留的活动，确保全局只有一个
             for old in Activity<DesignActivityAttributes>.activities {
                 await old.end(nil, dismissalPolicy: .immediate)
             }
