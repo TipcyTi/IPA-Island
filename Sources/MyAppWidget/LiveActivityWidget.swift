@@ -90,10 +90,10 @@ struct DesignActivityWidget: Widget {
             LockScreenView(context: context)
         } dynamicIsland: { context in
             let image = decode(context.state.imageBase64)
-            let coverSide: CGFloat = 54
+            let coverSide: CGFloat = 56
 
             return DynamicIsland {
-                // 展开态：左图、右上品牌、底部大字标题，填满整个卡片
+                // 展开态只保留封面与文字：左侧封面、右侧标题，并留出圆角安全边距
                 DynamicIslandExpandedRegion(.leading) {
                     Group {
                         if let image {
@@ -116,31 +116,18 @@ struct DesignActivityWidget: Widget {
                         }
                     }
                 }
+                .contentMargins([.leading, .top, .bottom], 6)
 
                 DynamicIslandExpandedRegion(.trailing) {
-                    VStack(alignment: .trailing, spacing: 3) {
-                        Text("MI ISLAND")
-                            .font(.system(size: 10, weight: .semibold))
-                            .tracking(1.6)
-                            .foregroundStyle(.secondary)
-
-                        Text("实时活动")
-                            .font(.system(size: 11))
-                            .foregroundStyle(.secondary)
-                    }
-                    .frame(maxWidth: .infinity, alignment: .trailing)
-                }
-
-                DynamicIslandExpandedRegion(.bottom) {
                     Text(context.state.title)
-                        .font(.system(size: 21, weight: .bold))
+                        .font(.system(size: 18, weight: .semibold))
                         .foregroundStyle(.primary)
-                        .lineLimit(2)
-                        .minimumScaleFactor(0.6)
+                        .lineLimit(3)
+                        .minimumScaleFactor(0.7)
                         .multilineTextAlignment(.leading)
                         .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(.top, 2)
                 }
+                .contentMargins([.trailing, .top, .bottom], 8)
             } compactLeading: {
                 if let image {
                     Image(uiImage: image)
