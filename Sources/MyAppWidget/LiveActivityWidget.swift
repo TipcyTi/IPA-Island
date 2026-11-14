@@ -135,8 +135,8 @@ struct DesignActivityWidget: Widget {
                     Image(uiImage: image)
                         .resizable()
                         .scaledToFill()
-                        .frame(width: 18, height: 18)
-                        .clipShape(RoundedRectangle(cornerRadius: 5, style: .continuous))
+                        .frame(width: 22, height: 22)
+                        .clipShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
                 } else {
                     Circle()
                         .fill(.primary)
@@ -148,7 +148,7 @@ struct DesignActivityWidget: Widget {
                     font: .caption2,
                     color: .primary
                 )
-                .frame(width: 18, height: 14)
+                .frame(width: 22, height: 14)
             } minimal: {
                 if let image {
                     Image(uiImage: image)
