@@ -181,7 +181,7 @@ struct DesignerView: View {
 
     private func header(_ m: Metrics) -> some View {
         VStack(alignment: .leading, spacing: m.ratio(0.020)) {
-            HStack(alignment: .firstTextBaseline, spacing: m.ratio(0.010)) {
+            HStack(alignment: .firstTextBaseline, spacing: m.ratio(0.022)) {
                 Text("MI")
                     .font(.system(size: m.ratio(0.080), weight: .black))
                     .foregroundStyle(Palette.ink)
