@@ -69,6 +69,7 @@ struct DesignerView: View {
     @State private var activity: Activity<DesignActivityAttributes>?
     @State private var updateTask: Task<Void, Never>?
     @State private var notice: String?
+    @State private var didAutoStart = false
     @FocusState private var titleFocused: Bool
 
     init() {
@@ -161,6 +162,7 @@ struct DesignerView: View {
         .onAppear {
             restoreThumbnail()
             syncActivity()
+            autoStartIfNeeded()
         }
         .onChange(of: photoItem) { _, item in
             guard let item else { return }
@@ -180,21 +182,17 @@ struct DesignerView: View {
     // MARK: - 顶部
 
     private func header(_ m: Metrics) -> some View {
-        VStack(alignment: .leading, spacing: m.ratio(0.020)) {
-            HStack(alignment: .firstTextBaseline, spacing: m.ratio(0.022)) {
-                Text("MI")
-                    .font(.system(size: m.ratio(0.080), weight: .black))
-                    .foregroundStyle(Palette.ink)
+        HStack(alignment: .firstTextBaseline, spacing: m.ratio(0.022)) {
+            Text("MI")
+                .font(.system(size: m.ratio(0.080), weight: .black))
+                .foregroundStyle(Palette.ink)
 
-                Text("ISLAND")
-                    .font(.system(size: m.ratio(0.080), weight: .light))
-                    .tracking(m.ratio(0.0025))
-                    .foregroundStyle(Palette.ink)
-            }
+            Text("ISLAND")
+                .font(.system(size: m.ratio(0.080), weight: .light))
+                .tracking(m.ratio(0.0025))
+                .foregroundStyle(Palette.ink)
 
-            Rectangle()
-                .fill(Palette.hairline)
-                .frame(height: 1)
+            Spacer(minLength: 0)
         }
     }
 
@@ -296,12 +294,10 @@ struct DesignerView: View {
     private func presentCoverActions() {
         if editing {
             saveTitle()
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.30) {
-                showSourceDialog = true
-            }
-        } else {
-            showSourceDialog = true
+            return
         }
+
+        showSourceDialog = true
     }
 
     // MARK: - 显示文字
@@ -606,11 +602,24 @@ struct DesignerView: View {
         activity = Activity<DesignActivityAttributes>.activities.first
     }
 
-    private func start() {
+    /// 进入主页后自动启动；本次进程只自动启动一次，用户手动停止后不反复拉起。
+    private func autoStartIfNeeded() {
+        guard !didAutoStart else { return }
+        didAutoStart = true
+
+        guard activity == nil else { return }
+        guard ActivityAuthorizationInfo().areActivitiesEnabled else { return }
+
+        start(silent: true)
+    }
+
+    private func start(silent: Bool = false) {
         guard !running else { return }
 
         guard ActivityAuthorizationInfo().areActivitiesEnabled else {
-            notice = "系统未开启实时活动，请到 设置 → 通知 → 实时活动 打开后再试。"
+            if !silent {
+                notice = "系统未开启实时活动，请到 设置 → 通知 → 实时活动 打开后再试。"
+            }
             return
         }
 
@@ -629,7 +638,9 @@ struct DesignerView: View {
                 )
                 activity = newActivity
             } catch {
-                notice = "启动实时活动失败，请稍后再试。"
+                if !silent {
+                    notice = "启动实时活动失败，请稍后再试。"
+                }
             }
         }
     }
