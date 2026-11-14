@@ -1,5 +1,4 @@
 import ActivityKit
-import CoreImage
 import PhotosUI
 import SwiftUI
 import UIKit
@@ -13,7 +12,7 @@ struct MyApp: App {
     }
 }
 
-/// 尺寸全部取自 HTML 的比例（以 390pt 宽为基准），换机型等比缩放。
+/// 尺寸全部按 390pt 宽等比缩放，换机型不跑版。
 struct Metrics {
     let width: CGFloat
 
@@ -21,18 +20,14 @@ struct Metrics {
 
     func ratio(_ value: CGFloat) -> CGFloat { width * value }
 
-    /// .main-content 宽 90%
-    var contentWidth: CGFloat { ratio(0.90) }
-    /// 图片与下方文字行的宽度
-    var blockWidth: CGFloat { ratio(0.68) }
-    /// --Ti-image-radius: 50px
-    var imageRadius: CGFloat { ratio(0.128) }
-    /// .content-layer gap: 15px
-    var gap: CGFloat { ratio(0.045) }
-    /// .text-line 26px
-    var textSize: CGFloat { ratio(0.067) }
-    /// translate 下移 20px
-    var verticalOffset: CGFloat { ratio(0.05) }
+    /// 页面左右留白
+    var hPadding: CGFloat { ratio(0.055) }
+    /// 卡片圆角
+    var cardRadius: CGFloat { ratio(0.058) }
+    /// 封面圆角
+    var coverRadius: CGFloat { ratio(0.070) }
+    /// 区块间距
+    var gap: CGFloat { ratio(0.038) }
 }
 
 /// 封面图落盘，杀进程后还在。
@@ -56,6 +51,7 @@ enum CoverStore {
     }
 }
 
+/// 主页：一张封面卡 + 一行可点开的文字 + 一颗主操作按钮。
 struct DesignerView: View {
     @Environment(\.colorScheme) private var colorScheme
     @AppStorage("mi.island.title") private var title = "Island"
@@ -66,14 +62,14 @@ struct DesignerView: View {
     @State private var draft = ""
     @State private var image: UIImage?
     @State private var imageBase64 = ""
-    @State private var imageIsDark = false
     @State private var activity: Activity<DesignActivityAttributes>?
     @State private var updateTask: Task<Void, Never>?
+    @State private var notice: String?
+    @FocusState private var titleFocused: Bool
 
     init() {
         if let data = CoverStore.load(), let saved = UIImage(data: data) {
             _image = State(initialValue: saved)
-            _imageIsDark = State(initialValue: Self.isDarkImage(saved))
         }
     }
 
@@ -90,22 +86,39 @@ struct DesignerView: View {
 
     private var running: Bool { activity != nil }
 
-    /// 背景偏暗时用白字，偏亮时用黑字。
-    private var isDark: Bool {
-        image == nil ? colorScheme == .dark : imageIsDark
+    private var shadowColor: Color {
+        .black.opacity(colorScheme == .dark ? 0.42 : 0.07)
     }
 
-    private var ink: Color { isDark ? .white : .black }
+    private var noticePresented: Binding<Bool> {
+        Binding(
+            get: { notice != nil },
+            set: { if !$0 { notice = nil } }
+        )
+    }
 
     var body: some View {
         GeometryReader { geo in
             let m = Metrics(width: geo.size.width)
 
-            content(m)
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .background {
-                    backdrop(m, size: geo.size).ignoresSafeArea()
+            ZStack {
+                backdrop(m)
+                    .ignoresSafeArea()
+
+                VStack(spacing: m.gap) {
+                    header(m)
+
+                    cover(m)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+
+                    titleCard(m)
+
+                    actionSection(m)
                 }
+                .padding(.horizontal, m.hPadding)
+                .padding(.top, m.ratio(0.015))
+                .padding(.bottom, m.ratio(0.02))
+            }
         }
         .photosPicker(isPresented: $showPicker, selection: $photoItem, matching: .images)
         .onAppear {
@@ -120,104 +133,348 @@ struct DesignerView: View {
             guard running else { return }
             scheduleUpdate(for: newState)
         }
-        .alert("实时活动文本", isPresented: $editing) {
-            TextField("Island", text: $draft)
-            Button("取消", role: .cancel) {}
-            Button("确定") { title = draft }
+        .alert("提示", isPresented: noticePresented) {
+            Button("好", role: .cancel) { notice = nil }
+        } message: {
+            Text(notice ?? "")
         }
     }
 
-    // MARK: - 内容
+    // MARK: - 顶部
 
-    private func content(_ m: Metrics) -> some View {
-        VStack(spacing: m.gap) {
-            cover(m)
+    private func header(_ m: Metrics) -> some View {
+        HStack(alignment: .center, spacing: m.ratio(0.03)) {
+            VStack(alignment: .leading, spacing: m.ratio(0.008)) {
+                Text("MI ISLAND")
+                    .font(.system(size: m.ratio(0.028), weight: .semibold))
+                    .tracking(m.ratio(0.007))
+                    .foregroundStyle(Palette.caption)
 
-            HStack(alignment: .center, spacing: m.ratio(0.03)) {
+                Text("实时活动设计器")
+                    .font(.system(size: m.ratio(0.066), weight: .black))
+                    .foregroundStyle(Palette.ink)
+            }
+
+            Spacer(minLength: m.ratio(0.02))
+
+            statusPill(m)
+        }
+    }
+
+    private func statusPill(_ m: Metrics) -> some View {
+        HStack(spacing: m.ratio(0.017)) {
+            Circle()
+                .fill(running ? Palette.ink : Palette.caption)
+                .frame(width: m.ratio(0.016), height: m.ratio(0.016))
+
+            Text(running ? "运行中" : "未启动")
+                .font(.system(size: m.ratio(0.030), weight: .semibold))
+                .foregroundStyle(Palette.ink)
+        }
+        .padding(.horizontal, m.ratio(0.030))
+        .padding(.vertical, m.ratio(0.018))
+        .background(Capsule(style: .continuous).fill(Palette.chip))
+        .overlay(Capsule(style: .continuous).strokeBorder(Palette.hairline, lineWidth: 1))
+        .animation(.easeInOut(duration: 0.2), value: running)
+        .accessibilityLabel(running ? "实时活动运行中" : "实时活动未启动")
+    }
+
+    // MARK: - 封面
+
+    private func cover(_ m: Metrics) -> some View {
+        ZStack(alignment: .topTrailing) {
+            coverBody(m)
+                .clipShape(RoundedRectangle(cornerRadius: m.coverRadius, style: .continuous))
+                .overlay(
+                    RoundedRectangle(cornerRadius: m.coverRadius, style: .continuous)
+                        .strokeBorder(Palette.hairline, lineWidth: 1)
+                        .opacity(image == nil ? 0 : 1)
+                )
+                .shadow(color: shadowColor, radius: 24, x: 0, y: 12)
+                .contentShape(RoundedRectangle(cornerRadius: m.coverRadius, style: .continuous))
+                .onTapGesture { showPicker = true }
+                .contextMenu {
+                    Button {
+                        showPicker = true
+                    } label: {
+                        Label("更换封面", systemImage: "photo")
+                    }
+
+                    if image != nil {
+                        Button(role: .destructive) {
+                            clearImage()
+                        } label: {
+                            Label("移除封面", systemImage: "trash")
+                        }
+                    }
+                }
+
+            if image != nil {
+                Menu {
+                    Button {
+                        showPicker = true
+                    } label: {
+                        Label("更换封面", systemImage: "photo")
+                    }
+
+                    Button(role: .destructive) {
+                        clearImage()
+                    } label: {
+                        Label("移除封面", systemImage: "trash")
+                    }
+                } label: {
+                    menuBadge(m)
+                }
+                .buttonStyle(.plain)
+                .padding(m.ratio(0.034))
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func coverBody(_ m: Metrics) -> some View {
+        ZStack {
+            if let image {
+                Image(uiImage: image)
+                    .resizable()
+                    .scaledToFill()
+
+                LinearGradient(
+                    colors: [Color.clear, Color.black.opacity(0.38)],
+                    startPoint: .center,
+                    endPoint: .bottom
+                )
+
+                VStack {
+                    Spacer()
+
+                    HStack {
+                        Text("点按更换封面")
+                            .font(.system(size: m.ratio(0.030), weight: .medium))
+                            .foregroundStyle(.white)
+                            .padding(.horizontal, m.ratio(0.026))
+                            .padding(.vertical, m.ratio(0.012))
+                            .background(Capsule(style: .continuous).fill(Color.black.opacity(0.34)))
+
+                        Spacer()
+                    }
+                    .padding(m.ratio(0.032))
+                }
+            } else {
+                Palette.chip
+                emptyCover(m)
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    private func emptyCover(_ m: Metrics) -> some View {
+        VStack(spacing: m.ratio(0.024)) {
+            ZStack {
+                Circle().fill(Palette.card)
+                Circle().strokeBorder(Palette.hairline, lineWidth: 1)
+                Image(systemName: "plus")
+                    .font(.system(size: m.ratio(0.050), weight: .semibold))
+                    .foregroundStyle(Palette.ink.opacity(0.7))
+            }
+            .frame(width: m.ratio(0.150), height: m.ratio(0.150))
+
+            Text("添加封面")
+                .font(.system(size: m.ratio(0.044), weight: .semibold))
+                .foregroundStyle(Palette.ink)
+
+            Text("会同步到锁屏与灵动岛")
+                .font(.system(size: m.ratio(0.032)))
+                .foregroundStyle(Palette.caption)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(
+            RoundedRectangle(cornerRadius: m.coverRadius - m.ratio(0.018), style: .continuous)
+                .strokeBorder(
+                    Palette.hairline,
+                    style: StrokeStyle(
+                        lineWidth: 1.5,
+                        dash: [m.ratio(0.020), m.ratio(0.018)]
+                    )
+                )
+                .padding(m.ratio(0.026))
+        )
+    }
+
+    private func menuBadge(_ m: Metrics) -> some View {
+        ZStack {
+            Circle().fill(.ultraThinMaterial)
+            Circle().strokeBorder(Color.white.opacity(0.35), lineWidth: 1)
+            Image(systemName: "ellipsis")
+                .font(.system(size: m.ratio(0.046), weight: .bold))
+                .foregroundStyle(.white)
+        }
+        .frame(width: m.ratio(0.105), height: m.ratio(0.105))
+        .shadow(color: .black.opacity(0.18), radius: 8, x: 0, y: 3)
+        .accessibilityLabel("封面操作")
+    }
+
+    // MARK: - 显示文字
+
+    private func titleCard(_ m: Metrics) -> some View {
+        VStack(alignment: .leading, spacing: m.ratio(0.016)) {
+            Text("显示文字")
+                .font(.system(size: m.ratio(0.030), weight: .semibold))
+                .tracking(m.ratio(0.006))
+                .foregroundStyle(Palette.caption)
+
+            if editing {
+                HStack(spacing: m.ratio(0.022)) {
+                    TextField("Island", text: $draft)
+                        .font(.system(size: m.ratio(0.052), weight: .bold))
+                        .foregroundStyle(Palette.ink)
+                        .tint(Palette.ink)
+                        .focused($titleFocused)
+                        .submitLabel(.done)
+                        .onSubmit(saveTitle)
+                        .onAppear {
+                            DispatchQueue.main.async { titleFocused = true }
+                        }
+
+                    Button(action: cancelTitle) {
+                        Image(systemName: "xmark")
+                            .font(.system(size: m.ratio(0.032), weight: .bold))
+                            .foregroundStyle(Palette.caption)
+                            .frame(width: m.ratio(0.088), height: m.ratio(0.088))
+                            .background(Circle().fill(Palette.chip))
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("取消编辑")
+
+                    Button(action: saveTitle) {
+                        Text("完成")
+                            .font(.system(size: m.ratio(0.032), weight: .bold))
+                            .foregroundStyle(Palette.canvas)
+                            .padding(.horizontal, m.ratio(0.036))
+                            .frame(height: m.ratio(0.088))
+                            .background(Capsule(style: .continuous).fill(Palette.ink))
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("保存文字")
+                }
+            } else {
                 Button {
                     draft = title
                     editing = true
                 } label: {
-                    Text(displayTitle)
-                        .font(.system(size: m.textSize, weight: .black))
-                        .foregroundStyle(ink.opacity(0.85))
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.5)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .shadow(color: .black.opacity(0.18), radius: m.ratio(0.004), x: 0, y: 1)
+                    HStack(spacing: m.ratio(0.030)) {
+                        Text(displayTitle)
+                            .font(.system(size: m.ratio(0.052), weight: .bold))
+                            .foregroundStyle(Palette.ink)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.6)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+
+                        ZStack {
+                            Circle().fill(Palette.chip)
+                            Image(systemName: "pencil")
+                                .font(.system(size: m.ratio(0.036), weight: .semibold))
+                                .foregroundStyle(Palette.ink.opacity(0.8))
+                        }
+                        .frame(width: m.ratio(0.088), height: m.ratio(0.088))
+                    }
+                    .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
-
-                Toggle("", isOn: Binding(
-                    get: { running },
-                    set: { on in
-                        if on {
-                            start()
-                        } else {
-                            stop()
-                        }
-                    }
-                ))
-                .labelsHidden()
-                .tint(ink)
-                .scaleEffect(m.ratio(0.0026))
+                .accessibilityLabel("编辑显示文字")
             }
-            .frame(width: m.blockWidth)
         }
-        .offset(y: m.verticalOffset)
+        .padding(.horizontal, m.ratio(0.044))
+        .padding(.vertical, m.ratio(0.036))
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(
+            RoundedRectangle(cornerRadius: m.cardRadius, style: .continuous)
+                .fill(Palette.card)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: m.cardRadius, style: .continuous)
+                .strokeBorder(Palette.hairline, lineWidth: 1)
+        )
+        .shadow(color: shadowColor, radius: 16, x: 0, y: 8)
+        .animation(.snappy(duration: 0.26), value: editing)
+    }
+
+    // MARK: - 主操作
+
+    private func actionSection(_ m: Metrics) -> some View {
+        VStack(spacing: m.ratio(0.018)) {
+            Button(action: toggleActivity) {
+                HStack(spacing: m.ratio(0.022)) {
+                    Image(systemName: running ? "stop.fill" : "play.fill")
+                        .font(.system(size: m.ratio(0.034), weight: .bold))
+
+                    Text(running ? "停止实时活动" : "启动实时活动")
+                        .font(.system(size: m.ratio(0.043), weight: .bold))
+                }
+                .foregroundStyle(running ? Palette.ink : Palette.canvas)
+                .frame(maxWidth: .infinity)
+                .frame(height: m.ratio(0.145))
+                .background(
+                    RoundedRectangle(cornerRadius: m.cardRadius, style: .continuous)
+                        .fill(running ? Palette.chip : Palette.ink)
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: m.cardRadius, style: .continuous)
+                        .strokeBorder(Palette.hairline, lineWidth: 1)
+                        .opacity(running ? 1 : 0)
+                )
+            }
+            .buttonStyle(.plain)
+
+            Text(running ? "改文字或换封面会自动同步，无需再操作" : "启动后会出现在锁屏和灵动岛上")
+                .font(.system(size: m.ratio(0.030)))
+                .foregroundStyle(Palette.caption)
+                .multilineTextAlignment(.center)
+                .frame(maxWidth: .infinity)
+        }
+        .animation(.easeInOut(duration: 0.2), value: running)
+    }
+
+    private func toggleActivity() {
+        if running {
+            stop()
+        } else {
+            start()
+        }
     }
 
     // MARK: - 背景（模糊图直接铺满全屏）
 
     @ViewBuilder
-    private func backdrop(_ m: Metrics, size: CGSize) -> some View {
-        if let image {
-            Image(uiImage: image)
-                .resizable()
-                .scaledToFill()
-                .frame(width: size.width, height: size.height)
-                .blur(radius: m.ratio(0.19))
-                .clipped()
-                .ignoresSafeArea()
-        } else {
+    private func backdrop(_ m: Metrics) -> some View {
+        ZStack {
             Palette.canvas
+
+            if let image {
+                Image(uiImage: image)
+                    .resizable()
+                    .scaledToFill()
+                    .blur(radius: m.ratio(0.13), opaque: true)
+
+                Palette.canvas.opacity(colorScheme == .dark ? 0.74 : 0.58)
+            }
         }
+        .clipped()
+        .ignoresSafeArea()
     }
 
-    // MARK: - 图片
+    // MARK: - 文字编辑
 
-    private func cover(_ m: Metrics) -> some View {
-        Button {
-            showPicker = true
-        } label: {
-            ZStack {
-                if let image {
-                    Image(uiImage: image)
-                        .resizable()
-                        .scaledToFill()
-                } else {
-                    Palette.chip
-                }
-            }
-            .frame(width: m.blockWidth, height: m.blockWidth)
-            .clipped()
-            .clipShape(RoundedRectangle(cornerRadius: m.imageRadius, style: .continuous))
-            .overlay(
-                RoundedRectangle(cornerRadius: m.imageRadius, style: .continuous)
-                    .strokeBorder(ink.opacity(image == nil ? 0.12 : 0), lineWidth: 1)
-            )
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-        .contextMenu {
-            if image != nil {
-                Button(role: .destructive) {
-                    clearImage()
-                } label: {
-                    Label("移除封面", systemImage: "trash")
-                }
-            }
-        }
+    private func saveTitle() {
+        title = draft.trimmingCharacters(in: .whitespacesAndNewlines)
+        editing = false
+        titleFocused = false
+    }
+
+    private func cancelTitle() {
+        editing = false
+        titleFocused = false
+        draft = title
     }
 
     // MARK: - 图片处理
@@ -228,7 +485,6 @@ struct DesignerView: View {
               let picked = UIImage(data: data) else { return }
 
         image = picked
-        imageIsDark = Self.isDarkImage(picked)
         imageBase64 = makeThumbnail(from: picked)?.base64EncodedString() ?? ""
 
         if let stored = downscale(picked, to: 1600, quality: 0.85) {
@@ -240,34 +496,7 @@ struct DesignerView: View {
         image = nil
         imageBase64 = ""
         photoItem = nil
-        imageIsDark = false
         CoverStore.clear()
-    }
-
-    /// 取图像平均亮度，决定元素用黑还是白。
-    private static func isDarkImage(_ image: UIImage) -> Bool {
-        guard let cg = image.cgImage else { return false }
-
-        let ci = CIImage(cgImage: cg)
-        guard let filter = CIFilter(
-            name: "CIAreaAverage",
-            parameters: [kCIInputImageKey: ci, kCIInputExtentKey: CIVector(cgRect: ci.extent)]
-        ), let output = filter.outputImage else {
-            return false
-        }
-
-        var pixel = [UInt8](repeating: 0, count: 4)
-        CIContext().render(
-            output,
-            toBitmap: &pixel,
-            rowBytes: 4,
-            bounds: CGRect(x: 0, y: 0, width: 1, height: 1),
-            format: .RGBA8,
-            colorSpace: CGColorSpaceCreateDeviceRGB()
-        )
-
-        let luminance = (0.299 * Double(pixel[0]) + 0.587 * Double(pixel[1]) + 0.114 * Double(pixel[2])) / 255
-        return luminance < 0.55
     }
 
     /// 冷启动时把落盘的封面读回来，并补上实时活动要用的缩略图。
@@ -330,21 +559,29 @@ struct DesignerView: View {
 
     private func start() {
         guard !running else { return }
-        guard ActivityAuthorizationInfo().areActivitiesEnabled else { return }
+
+        guard ActivityAuthorizationInfo().areActivitiesEnabled else {
+            notice = "系统未开启实时活动，请到 设置 → 通知 → 实时活动 打开后再试。"
+            return
+        }
 
         let content = state
+
         Task { @MainActor in
             for old in Activity<DesignActivityAttributes>.activities {
                 await old.end(nil, dismissalPolicy: .immediate)
             }
 
-            guard let newActivity = try? Activity.request(
-                attributes: DesignActivityAttributes(),
-                content: ActivityContent(state: content, staleDate: nil),
-                pushType: nil
-            ) else { return }
-
-            activity = newActivity
+            do {
+                let newActivity = try Activity.request(
+                    attributes: DesignActivityAttributes(),
+                    content: ActivityContent(state: content, staleDate: nil),
+                    pushType: nil
+                )
+                activity = newActivity
+            } catch {
+                notice = "启动实时活动失败，请稍后再试。"
+            }
         }
     }
 
