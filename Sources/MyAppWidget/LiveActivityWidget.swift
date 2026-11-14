@@ -90,10 +90,10 @@ struct DesignActivityWidget: Widget {
             LockScreenView(context: context)
         } dynamicIsland: { context in
             let image = decode(context.state.imageBase64)
-            let coverSide: CGFloat = 52
+            let coverSide: CGFloat = 50
 
             return DynamicIsland {
-                // 展开态只保留封面与标题：左图右文，文字在区域内垂直居中
+                // 展开态只保留封面与标题：左图右文，图片留出足够内边距避免被圆角裁切
                 DynamicIslandExpandedRegion(.leading) {
                     Group {
                         if let image {
@@ -110,13 +110,13 @@ struct DesignActivityWidget: Widget {
                                 .frame(width: coverSide, height: coverSide)
                                 .overlay {
                                     Image(systemName: "photo")
-                                        .font(.system(size: 18, weight: .medium))
+                                        .font(.system(size: 17, weight: .medium))
                                         .foregroundStyle(.secondary)
                                 }
                         }
                     }
                 }
-                .contentMargins([.leading, .top, .bottom], 8)
+                .contentMargins([.leading, .top, .bottom], 16)
 
                 DynamicIslandExpandedRegion(.trailing) {
                     VStack(alignment: .leading, spacing: 0) {
@@ -134,7 +134,7 @@ struct DesignActivityWidget: Widget {
                     }
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
                 }
-                .contentMargins([.trailing, .top, .bottom], 10)
+                .contentMargins([.trailing, .top, .bottom], 12)
             } compactLeading: {
                 if let image {
                     Image(uiImage: image)
