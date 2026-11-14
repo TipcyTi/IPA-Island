@@ -1,4 +1,5 @@
 import ActivityKit
+import CoreImage
 import PhotosUI
 import SwiftUI
 import UIKit
@@ -22,8 +23,8 @@ struct Metrics {
 
     /// .main-content 宽 90%
     var contentWidth: CGFloat { ratio(0.90) }
-    /// .content-image 与 .text-control-container 宽 92%
-    var blockWidth: CGFloat { ratio(0.828) }
+    /// 图片与下方文字行的宽度
+    var blockWidth: CGFloat { ratio(0.62) }
     /// --Ti-image-radius: 50px
     var imageRadius: CGFloat { ratio(0.128) }
     /// .content-layer gap: 15px
@@ -67,12 +68,14 @@ struct DesignerView: View {
     @State private var draft = ""
     @State private var image: UIImage?
     @State private var imageBase64 = ""
+    @State private var imageIsDark = false
     @State private var activity: Activity<DesignActivityAttributes>?
     @State private var updateTask: Task<Void, Never>?
 
     init() {
         if let data = CoverStore.load(), let saved = UIImage(data: data) {
             _image = State(initialValue: saved)
+            _imageIsDark = State(initialValue: Self.isDarkImage(saved))
         }
     }
 
@@ -89,7 +92,11 @@ struct DesignerView: View {
 
     private var running: Bool { activity != nil }
 
-    private var isDark: Bool { colorScheme == .dark }
+    /// 背景偏暗时用白字，偏亮时用黑字。
+    private var isDark: Bool {
+        image == nil ? colorScheme == .dark : imageIsDark
+    }
+
     private var ink: Color { isDark ? .white : .black }
 
     var body: some View {
@@ -145,55 +152,37 @@ struct DesignerView: View {
                 }
                 .buttonStyle(.plain)
 
-                Button {
-                    if running {
-                        stop()
-                    } else {
-                        start()
+                Toggle("", isOn: Binding(
+                    get: { running },
+                    set: { on in
+                        if on {
+                            start()
+                        } else {
+                            stop()
+                        }
                     }
-                } label: {
-                    Text(running ? "停止" : "启动")
-                        .font(.system(size: m.actionSize, weight: .black))
-                        .foregroundStyle(ink.opacity(running ? 0.75 : 0.45))
-                }
-                .buttonStyle(.plain)
+                ))
+                .labelsHidden()
+                .tint(ink)
+                .scaleEffect(m.ratio(0.0026))
             }
             .frame(width: m.blockWidth)
         }
         .offset(y: m.verticalOffset)
     }
 
-    // MARK: - 背景（模糊图 + 径向遮罩，边缘回到底色）
+    // MARK: - 背景（模糊图直接铺满全屏）
 
     @ViewBuilder
     private func backdrop(_ m: Metrics, size: CGSize) -> some View {
         if let image {
-            ZStack {
-                Image(uiImage: image)
-                    .resizable()
-                    .scaledToFill()
-                    .frame(width: size.width, height: size.height)
-                    .blur(radius: m.ratio(0.19))
-                    .brightness(isDark ? -0.05 : -0.22)
-                    .clipped()
-
-                RadialGradient(
-                    stops: [
-                        .init(color: Palette.canvas.opacity(0), location: 0),
-                        .init(color: Palette.canvas.opacity(0), location: 0.30),
-                        .init(color: Palette.canvas.opacity(0.10), location: 0.40),
-                        .init(color: Palette.canvas.opacity(0.30), location: 0.50),
-                        .init(color: Palette.canvas.opacity(0.60), location: 0.60),
-                        .init(color: Palette.canvas.opacity(0.80), location: 0.70),
-                        .init(color: Palette.canvas.opacity(0.90), location: 0.80),
-                        .init(color: Palette.canvas, location: 1.0)
-                    ],
-                    center: .center,
-                    startRadius: 0,
-                    endRadius: max(size.width, size.height) * 0.72
-                )
-            }
-            .ignoresSafeArea()
+            Image(uiImage: image)
+                .resizable()
+                .scaledToFill()
+                .frame(width: size.width, height: size.height)
+                .blur(radius: m.ratio(0.19))
+                .clipped()
+                .ignoresSafeArea()
         } else {
             Palette.canvas
         }
@@ -243,6 +232,7 @@ struct DesignerView: View {
               let picked = UIImage(data: data) else { return }
 
         image = picked
+        imageIsDark = Self.isDarkImage(picked)
         imageBase64 = makeThumbnail(from: picked)?.base64EncodedString() ?? ""
 
         if let stored = downscale(picked, to: 1600, quality: 0.85) {
@@ -254,7 +244,34 @@ struct DesignerView: View {
         image = nil
         imageBase64 = ""
         photoItem = nil
+        imageIsDark = false
         CoverStore.clear()
+    }
+
+    /// 取图像平均亮度，决定元素用黑还是白。
+    private static func isDarkImage(_ image: UIImage) -> Bool {
+        guard let cg = image.cgImage else { return false }
+
+        let ci = CIImage(cgImage: cg)
+        guard let filter = CIFilter(
+            name: "CIAreaAverage",
+            parameters: [kCIInputImageKey: ci, kCIInputExtentKey: CIVector(cgRect: ci.extent)]
+        ), let output = filter.outputImage else {
+            return false
+        }
+
+        var pixel = [UInt8](repeating: 0, count: 4)
+        CIContext().render(
+            output,
+            toBitmap: &pixel,
+            rowBytes: 4,
+            bounds: CGRect(x: 0, y: 0, width: 1, height: 1),
+            format: .RGBA8,
+            colorSpace: CGColorSpaceCreateDeviceRGB()
+        )
+
+        let luminance = (0.299 * Double(pixel[0]) + 0.587 * Double(pixel[1]) + 0.114 * Double(pixel[2])) / 255
+        return luminance < 0.55
     }
 
     /// 冷启动时把落盘的封面读回来，并补上实时活动要用的缩略图。
