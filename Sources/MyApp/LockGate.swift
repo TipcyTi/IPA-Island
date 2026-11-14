@@ -30,7 +30,7 @@ struct RootView: View {
                         authenticate()
                     } label: {
                         Text("Face ID")
-                            .font(.system(size: m.ratio(0.16), weight: .black))
+                            .font(.system(size: m.ratio(0.11), weight: .black))
                             .foregroundStyle(Palette.wordmark)
                             .shadow(
                                 color: .black.opacity(0.22),

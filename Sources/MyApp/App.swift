@@ -1,4 +1,5 @@
 import ActivityKit
+import CoreImage
 import PhotosUI
 import SwiftUI
 import UIKit
@@ -54,18 +55,21 @@ enum CoverStore {
 }
 
 struct DesignerView: View {
+    @Environment(\.colorScheme) private var colorScheme
     @AppStorage("mi.island.title") private var title = "Island"
 
     @State private var photoItem: PhotosPickerItem?
     @State private var showPicker = false
     @State private var image: UIImage?
     @State private var imageBase64 = ""
+    @State private var imageIsDark = false
     @State private var activity: Activity<DesignActivityAttributes>?
     @State private var updateTask: Task<Void, Never>?
 
     init() {
         if let data = CoverStore.load(), let saved = UIImage(data: data) {
             _image = State(initialValue: saved)
+            _imageIsDark = State(initialValue: Self.isDarkImage(saved))
         }
     }
 
@@ -82,48 +86,23 @@ struct DesignerView: View {
 
     private var running: Bool { activity != nil }
 
+    /// 背景偏暗时用白字，偏亮时用黑字，元素颜色只在这两个极值之间切换。
+    private var isDarkBackdrop: Bool {
+        image == nil ? colorScheme == .dark : imageIsDark
+    }
+
+    private var fg: Color { isDarkBackdrop ? .white : .black }
+    private var bg: Color { isDarkBackdrop ? .black : .white }
+
     var body: some View {
         GeometryReader { geo in
             let m = Metrics(width: geo.size.width)
 
-            ZStack {
-                backdrop(m)
-
-                VStack(alignment: .leading, spacing: 0) {
-                    Text("Island")
-                        .font(.system(size: m.titleSize, weight: .black))
-                        .foregroundStyle(Palette.ink)
-                        .shadow(
-                            color: .black.opacity(0.22),
-                            radius: m.ratio(0.02),
-                            x: 0,
-                            y: m.ratio(0.008)
-                        )
-
-                    Spacer(minLength: 0)
-
-                    field(m)
-
-                    Spacer().frame(height: m.gap)
-
-                    HStack(alignment: .top, spacing: m.gap) {
-                        cover(m)
-
-                        VStack(spacing: m.gap) {
-                            actionButton("启动", m, filled: true) { start() }
-                            actionButton("停止", m, filled: false) { stop() }
-                        }
-                        .frame(
-                            width: m.width - m.margin * 2 - m.squareSide - m.gap,
-                            height: m.squareSide
-                        )
-                    }
-
-                    Spacer().frame(height: m.gap)
+            content(m)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .background {
+                    backdrop(m).ignoresSafeArea()
                 }
-                .padding(.horizontal, m.margin)
-                .padding(.top, m.ratio(0.10))
-            }
         }
         .photosPicker(isPresented: $showPicker, selection: $photoItem, matching: .images)
         .onAppear { restoreThumbnail() }
@@ -137,9 +116,41 @@ struct DesignerView: View {
         }
     }
 
+    private func content(_ m: Metrics) -> some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Text("Island")
+                .font(.system(size: m.titleSize, weight: .black))
+                .foregroundStyle(fg)
+                .shadow(color: .black.opacity(0.22), radius: m.ratio(0.02), x: 0, y: m.ratio(0.008))
+
+            Spacer(minLength: 0)
+
+            field(m)
+
+            Spacer().frame(height: m.gap)
+
+            HStack(alignment: .top, spacing: m.gap) {
+                cover(m)
+
+                VStack(spacing: m.gap) {
+                    actionButton("启动", m, filled: true) { start() }
+                    actionButton("停止", m, filled: false) { stop() }
+                }
+                .frame(
+                    width: m.width - m.margin * 2 - m.squareSide - m.gap,
+                    height: m.squareSide
+                )
+            }
+
+            Spacer().frame(height: m.gap)
+        }
+        .padding(.horizontal, m.margin)
+        .padding(.top, m.ratio(0.10))
+    }
+
     // MARK: - 背景
 
-    /// 选图后自动高斯模糊、铺满整屏；没图时就是纯底色。
+    /// 铺满整屏的模糊封面，不叠任何底色，边缘不透明、不透出页面底色。
     @ViewBuilder
     private func backdrop(_ m: Metrics) -> some View {
         if let image {
@@ -147,13 +158,11 @@ struct DesignerView: View {
                 .resizable()
                 .scaledToFill()
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .blur(radius: m.ratio(0.10))
-                .overlay(Palette.canvas.opacity(0.55))
+                .blur(radius: m.ratio(0.14), opaque: true)
                 .clipped()
-                .ignoresSafeArea()
                 .allowsHitTesting(false)
         } else {
-            Palette.canvas.ignoresSafeArea()
+            Palette.canvas
         }
     }
 
@@ -164,18 +173,22 @@ struct DesignerView: View {
 
         return ZStack(alignment: .leading) {
             RoundedRectangle(cornerRadius: m.fieldRadius, style: .continuous)
-                .fill(Palette.chip)
+                .fill(bg)
 
             TextField("Island", text: $title)
                 .textFieldStyle(.plain)
                 .font(.system(size: m.bodySize))
-                .foregroundStyle(Palette.ink)
+                .foregroundStyle(fg)
                 .padding(.leading, m.ratio(0.038))
                 .padding(.trailing, m.ratio(0.045))
                 .frame(maxWidth: .infinity, alignment: .leading)
         }
         .frame(width: width, height: m.fieldHeight)
         .clipShape(RoundedRectangle(cornerRadius: m.fieldRadius, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: m.fieldRadius, style: .continuous)
+                .strokeBorder(fg.opacity(0.15), lineWidth: 1)
+        )
     }
 
     // MARK: - 图片
@@ -190,16 +203,20 @@ struct DesignerView: View {
                         .resizable()
                         .scaledToFill()
                 } else {
-                    Palette.chip
+                    bg
 
                     Text("选择图片")
                         .font(.system(size: m.bodySize, weight: .bold))
-                        .foregroundStyle(Palette.ink)
+                        .foregroundStyle(fg)
                 }
             }
             .frame(width: m.squareSide, height: m.squareSide)
             .clipped()
             .clipShape(RoundedRectangle(cornerRadius: m.blockRadius, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: m.blockRadius, style: .continuous)
+                    .strokeBorder(fg.opacity(0.15), lineWidth: 1)
+            )
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
@@ -226,10 +243,15 @@ struct DesignerView: View {
             Text(label)
                 .font(.system(size: m.labelSize, weight: .bold))
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .foregroundStyle(filled ? Palette.canvas : Palette.ink)
+                .foregroundStyle(filled ? bg : fg)
                 .background(
                     RoundedRectangle(cornerRadius: m.blockRadius, style: .continuous)
-                        .fill(filled ? Palette.ink : Palette.chip)
+                        .fill(filled ? fg : bg)
+                )
+                .clipShape(RoundedRectangle(cornerRadius: m.blockRadius, style: .continuous))
+                .overlay(
+                    RoundedRectangle(cornerRadius: m.blockRadius, style: .continuous)
+                        .strokeBorder(fg.opacity(filled ? 0 : 0.2), lineWidth: 1)
                 )
         }
         .buttonStyle(.plain)
@@ -243,6 +265,7 @@ struct DesignerView: View {
               let picked = UIImage(data: data) else { return }
 
         image = picked
+        imageIsDark = Self.isDarkImage(picked)
         imageBase64 = makeThumbnail(from: picked)?.base64EncodedString() ?? ""
 
         if let stored = downscale(picked, to: 1600, quality: 0.85) {
@@ -254,6 +277,7 @@ struct DesignerView: View {
         image = nil
         imageBase64 = ""
         photoItem = nil
+        imageIsDark = false
         CoverStore.clear()
     }
 
@@ -262,6 +286,32 @@ struct DesignerView: View {
     private func restoreThumbnail() {
         guard let image, imageBase64.isEmpty else { return }
         imageBase64 = makeThumbnail(from: image)?.base64EncodedString() ?? ""
+    }
+
+    /// 取图像平均亮度，决定元素用黑还是白。
+    private static func isDarkImage(_ image: UIImage) -> Bool {
+        guard let cg = image.cgImage else { return false }
+
+        let ci = CIImage(cgImage: cg)
+        guard let filter = CIFilter(
+            name: "CIAreaAverage",
+            parameters: [kCIInputImageKey: ci, kCIInputExtentKey: CIVector(cgRect: ci.extent)]
+        ), let output = filter.outputImage else {
+            return false
+        }
+
+        var pixel = [UInt8](repeating: 0, count: 4)
+        CIContext().render(
+            output,
+            toBitmap: &pixel,
+            rowBytes: 4,
+            bounds: CGRect(x: 0, y: 0, width: 1, height: 1),
+            format: .RGBA8,
+            colorSpace: CGColorSpaceCreateDeviceRGB()
+        )
+
+        let luminance = (0.299 * Double(pixel[0]) + 0.587 * Double(pixel[1]) + 0.114 * Double(pixel[2])) / 255
+        return luminance < 0.55
     }
 
     /// 实时活动状态有 4KB 上限，只能放缩略图：逐步压到 ≤1600 字节。
