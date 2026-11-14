@@ -102,7 +102,7 @@ struct DesignerView: View {
             let m = Metrics(width: geo.size.width)
 
             ZStack {
-                backdrop(m)
+                Palette.canvas
                     .ignoresSafeArea()
 
                 VStack(spacing: m.gap) {
@@ -118,6 +118,10 @@ struct DesignerView: View {
                 .padding(.horizontal, m.hPadding)
                 .padding(.top, m.ratio(0.015))
                 .padding(.bottom, m.ratio(0.02))
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .background {
+                    backdrop(m)
+                }
             }
         }
         .photosPicker(isPresented: $showPicker, selection: $photoItem, matching: .images)
@@ -182,62 +186,66 @@ struct DesignerView: View {
     // MARK: - 封面
 
     private func cover(_ m: Metrics) -> some View {
-        ZStack(alignment: .topTrailing) {
-            coverBody(m)
-                .clipShape(RoundedRectangle(cornerRadius: m.coverRadius, style: .continuous))
-                .overlay(
-                    RoundedRectangle(cornerRadius: m.coverRadius, style: .continuous)
-                        .strokeBorder(Palette.hairline, lineWidth: 1)
-                        .opacity(image == nil ? 0 : 1)
-                )
-                .shadow(color: shadowColor, radius: 24, x: 0, y: 12)
-                .contentShape(RoundedRectangle(cornerRadius: m.coverRadius, style: .continuous))
-                .onTapGesture { showPicker = true }
-                .contextMenu {
-                    Button {
-                        showPicker = true
-                    } label: {
-                        Label("更换封面", systemImage: "photo")
+        GeometryReader { proxy in
+            ZStack(alignment: .topTrailing) {
+                coverBody(m, size: proxy.size)
+                    .clipShape(RoundedRectangle(cornerRadius: m.coverRadius, style: .continuous))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: m.coverRadius, style: .continuous)
+                            .strokeBorder(Palette.hairline, lineWidth: 1)
+                            .opacity(image == nil ? 0 : 1)
+                    )
+                    .shadow(color: shadowColor, radius: 24, x: 0, y: 12)
+                    .contentShape(RoundedRectangle(cornerRadius: m.coverRadius, style: .continuous))
+                    .onTapGesture { showPicker = true }
+                    .contextMenu {
+                        Button {
+                            showPicker = true
+                        } label: {
+                            Label("更换封面", systemImage: "photo")
+                        }
+
+                        if image != nil {
+                            Button(role: .destructive) {
+                                clearImage()
+                            } label: {
+                                Label("移除封面", systemImage: "trash")
+                            }
+                        }
                     }
 
-                    if image != nil {
+                if image != nil {
+                    Menu {
+                        Button {
+                            showPicker = true
+                        } label: {
+                            Label("更换封面", systemImage: "photo")
+                        }
+
                         Button(role: .destructive) {
                             clearImage()
                         } label: {
                             Label("移除封面", systemImage: "trash")
                         }
-                    }
-                }
-
-            if image != nil {
-                Menu {
-                    Button {
-                        showPicker = true
                     } label: {
-                        Label("更换封面", systemImage: "photo")
+                        menuBadge(m)
                     }
-
-                    Button(role: .destructive) {
-                        clearImage()
-                    } label: {
-                        Label("移除封面", systemImage: "trash")
-                    }
-                } label: {
-                    menuBadge(m)
+                    .buttonStyle(.plain)
+                    .padding(m.ratio(0.034))
                 }
-                .buttonStyle(.plain)
-                .padding(m.ratio(0.034))
             }
         }
     }
 
     @ViewBuilder
-    private func coverBody(_ m: Metrics) -> some View {
+    private func coverBody(_ m: Metrics, size: CGSize) -> some View {
         ZStack {
             if let image {
                 Image(uiImage: image)
                     .resizable()
                     .scaledToFill()
+                    .frame(width: size.width, height: size.height)
+                    .clipped()
 
                 LinearGradient(
                     colors: [Color.clear, Color.black.opacity(0.38)],
@@ -265,7 +273,7 @@ struct DesignerView: View {
                 emptyCover(m)
             }
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .frame(width: size.width, height: size.height)
     }
 
     private func emptyCover(_ m: Metrics) -> some View {
@@ -447,19 +455,22 @@ struct DesignerView: View {
 
     @ViewBuilder
     private func backdrop(_ m: Metrics) -> some View {
-        ZStack {
-            Palette.canvas
+        GeometryReader { proxy in
+            ZStack {
+                Palette.canvas
 
-            if let image {
-                Image(uiImage: image)
-                    .resizable()
-                    .scaledToFill()
-                    .blur(radius: m.ratio(0.13), opaque: true)
+                if let image {
+                    Image(uiImage: image)
+                        .resizable()
+                        .scaledToFill()
+                        .frame(width: proxy.size.width, height: proxy.size.height)
+                        .blur(radius: m.ratio(0.13), opaque: true)
 
-                Palette.canvas.opacity(colorScheme == .dark ? 0.82 : 0.80)
+                    Palette.canvas.opacity(colorScheme == .dark ? 0.82 : 0.80)
+                }
             }
+            .clipped()
         }
-        .clipped()
         .ignoresSafeArea()
     }
 
