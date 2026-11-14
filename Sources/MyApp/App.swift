@@ -142,8 +142,12 @@ struct DesignerView: View {
             }
         }
         .confirmationDialog("选择封面", isPresented: $showSourceDialog, titleVisibility: .visible) {
-            Button("从相册选择") { showPicker = true }
-            Button("从文件选择") { showFileImporter = true }
+            Button("从相册选择") {
+                openPicker { showPicker = true }
+            }
+            Button("从文件选择") {
+                openPicker { showFileImporter = true }
+            }
 
             if image != nil {
                 Button("移除封面", role: .destructive) { clearImage() }
@@ -453,7 +457,12 @@ struct DesignerView: View {
         draft = title
     }
 
-    // MARK: - 图片处理
+    // MARK: - 封面上传
+
+    /// 等动作面板收起后再拉起系统选择器，避免两个模态互相抢占。
+    private func openPicker(_ present: @escaping () -> Void) {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.25, execute: present)
+    }
 
     @MainActor
     private func loadImage(from item: PhotosPickerItem) async {
