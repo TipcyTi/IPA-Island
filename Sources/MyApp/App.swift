@@ -31,15 +31,6 @@ struct Metrics {
     var gap: CGFloat { ratio(0.038) }
 }
 
-/// 点按时轻微回弹，给封面一个可交互动感。
-private struct CoverPressStyle: ButtonStyle {
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .scaleEffect(configuration.isPressed ? 0.975 : 1)
-            .animation(.spring(response: 0.24, dampingFraction: 0.75), value: configuration.isPressed)
-    }
-}
-
 /// 封面图落盘，杀进程后还在。
 enum CoverStore {
     static var url: URL {
@@ -69,7 +60,7 @@ struct DesignerView: View {
     @State private var photoItem: PhotosPickerItem?
     @State private var showPicker = false
     @State private var showFileImporter = false
-    @State private var showSourceSheet = false
+    @State private var showSourceDialog = false
     @State private var editing = false
     @State private var draft = ""
     @State private var image: UIImage?
@@ -138,9 +129,6 @@ struct DesignerView: View {
                     backdrop(m)
                 }
             }
-            .overlay {
-                sourceOverlay(m, insets: geo.safeAreaInsets)
-            }
         }
         .photosPicker(isPresented: $showPicker, selection: $photoItem, matching: .images)
         .fileImporter(
@@ -155,6 +143,20 @@ struct DesignerView: View {
             case .failure:
                 notice = "无法读取所选文件。"
             }
+        }
+        .confirmationDialog("选择封面", isPresented: $showSourceDialog, titleVisibility: .visible) {
+            Button("从相册选择") {
+                openPicker { showPicker = true }
+            }
+            Button("从文件选择") {
+                openPicker { showFileImporter = true }
+            }
+
+            if image != nil {
+                Button("移除封面", role: .destructive) { clearImage() }
+            }
+
+            Button("取消", role: .cancel) {}
         }
         .onAppear {
             restoreThumbnail()
@@ -178,13 +180,21 @@ struct DesignerView: View {
     // MARK: - 顶部
 
     private func header(_ m: Metrics) -> some View {
-        HStack(spacing: 0) {
-            Text("MI ISLAND")
-                .font(.system(size: m.ratio(0.090), weight: .black))
-                .tracking(m.ratio(0.0015))
-                .foregroundStyle(Palette.ink)
+        VStack(alignment: .leading, spacing: m.ratio(0.020)) {
+            HStack(alignment: .firstTextBaseline, spacing: m.ratio(0.010)) {
+                Text("MI")
+                    .font(.system(size: m.ratio(0.080), weight: .black))
+                    .foregroundStyle(Palette.ink)
 
-            Spacer(minLength: 0)
+                Text("ISLAND")
+                    .font(.system(size: m.ratio(0.080), weight: .light))
+                    .tracking(m.ratio(0.0025))
+                    .foregroundStyle(Palette.ink)
+            }
+
+            Rectangle()
+                .fill(Palette.hairline)
+                .frame(height: 1)
         }
     }
 
@@ -193,7 +203,7 @@ struct DesignerView: View {
     private func cover(_ m: Metrics) -> some View {
         GeometryReader { proxy in
             Button {
-                presentSourceSheet()
+                presentCoverActions()
             } label: {
                 coverBody(m, size: proxy.size)
                     .clipShape(RoundedRectangle(cornerRadius: m.coverRadius, style: .continuous))
@@ -204,7 +214,7 @@ struct DesignerView: View {
                     )
                     .contentShape(RoundedRectangle(cornerRadius: m.coverRadius, style: .continuous))
             }
-            .buttonStyle(CoverPressStyle())
+            .buttonStyle(.plain)
             .contextMenu {
                 Button {
                     showPicker = true
@@ -283,136 +293,14 @@ struct DesignerView: View {
         )
     }
 
-    // MARK: - 封面来源面板
-
-    private enum CoverSource {
-        case photos
-        case files
-        case remove
-    }
-
-    @ViewBuilder
-    private func sourceOverlay(_ m: Metrics, insets: EdgeInsets) -> some View {
-        ZStack(alignment: .bottom) {
-            if showSourceSheet {
-                Color.black.opacity(colorScheme == .dark ? 0.55 : 0.34)
-                    .ignoresSafeArea()
-                    .transition(.opacity)
-                    .onTapGesture { dismissSourceSheet() }
-
-                sourcePanel(m)
-                    .padding(.horizontal, m.ratio(0.03))
-                    .padding(.bottom, max(insets.bottom, m.ratio(0.03)) + m.ratio(0.012))
-                    .transition(.move(edge: .bottom).combined(with: .opacity))
+    private func presentCoverActions() {
+        if editing {
+            saveTitle()
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.30) {
+                showSourceDialog = true
             }
-        }
-        .ignoresSafeArea()
-    }
-
-    private func sourcePanel(_ m: Metrics) -> some View {
-        VStack(spacing: 0) {
-            Text("选择封面")
-                .font(.system(size: m.ratio(0.031), weight: .semibold))
-                .foregroundStyle(Palette.caption)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.horizontal, m.ratio(0.048))
-                .padding(.top, m.ratio(0.045))
-                .padding(.bottom, m.ratio(0.028))
-
-            sourceRow(m, title: "从相册选择", icon: "photo") { select(.photos) }
-
-            Rectangle()
-                .fill(Palette.hairline)
-                .frame(height: 1)
-                .padding(.leading, m.ratio(0.048))
-
-            sourceRow(m, title: "从文件选择", icon: "folder") { select(.files) }
-
-            if image != nil {
-                Rectangle()
-                    .fill(Palette.hairline)
-                    .frame(height: 1)
-                    .padding(.leading, m.ratio(0.048))
-
-                sourceRow(m, title: "移除封面", icon: "trash") { select(.remove) }
-            }
-
-            Button {
-                dismissSourceSheet()
-            } label: {
-                Text("取消")
-                    .font(.system(size: m.ratio(0.038), weight: .semibold))
-                    .foregroundStyle(Palette.ink)
-                    .frame(maxWidth: .infinity)
-                    .frame(height: m.ratio(0.118))
-                    .background(
-                        RoundedRectangle(cornerRadius: m.ratio(0.04), style: .continuous)
-                            .fill(Palette.chip)
-                    )
-            }
-            .buttonStyle(.plain)
-            .padding(m.ratio(0.035))
-        }
-        .background(
-            RoundedRectangle(cornerRadius: m.ratio(0.065), style: .continuous)
-                .fill(Palette.card)
-                .shadow(color: .black.opacity(0.16), radius: 22, x: 0, y: 10)
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: m.ratio(0.065), style: .continuous)
-                .strokeBorder(Palette.hairline, lineWidth: 1)
-        )
-        .compositingGroup()
-    }
-
-    private func sourceRow(
-        _ m: Metrics,
-        title: String,
-        icon: String,
-        action: @escaping () -> Void
-    ) -> some View {
-        Button(action: action) {
-            HStack(spacing: m.ratio(0.032)) {
-                Image(systemName: icon)
-                    .font(.system(size: m.ratio(0.040), weight: .medium))
-                    .frame(width: m.ratio(0.052))
-
-                Text(title)
-                    .font(.system(size: m.ratio(0.040), weight: .medium))
-
-                Spacer(minLength: 0)
-            }
-            .foregroundStyle(Palette.ink)
-            .padding(.horizontal, m.ratio(0.048))
-            .frame(height: m.ratio(0.135))
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-    }
-
-    private func presentSourceSheet() {
-        titleFocused = false
-        withAnimation(.spring(response: 0.34, dampingFraction: 0.90)) {
-            showSourceSheet = true
-        }
-    }
-
-    private func dismissSourceSheet() {
-        withAnimation(.easeOut(duration: 0.22)) {
-            showSourceSheet = false
-        }
-    }
-
-    private func select(_ source: CoverSource) {
-        dismissSourceSheet()
-
-        switch source {
-        case .photos:
-            openPicker { showPicker = true }
-        case .files:
-            openPicker { showFileImporter = true }
-        case .remove:
-            clearImage()
+        } else {
+            showSourceDialog = true
         }
     }
 
@@ -578,7 +466,7 @@ struct DesignerView: View {
 
     /// 等动作面板收起后再拉起系统选择器，避免两个模态互相抢占。
     private func openPicker(_ present: @escaping () -> Void) {
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.24, execute: present)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.20, execute: present)
     }
 
     @MainActor
@@ -609,7 +497,7 @@ struct DesignerView: View {
         let small = Self.backdropThumbnail(from: display)
         let base64 = makeThumbnail(from: display)?.base64EncodedString() ?? ""
 
-        withAnimation(.easeInOut(duration: 0.32)) {
+        withAnimation(.easeInOut(duration: 0.24)) {
             image = display
             backdropImage = small
         }
@@ -622,7 +510,7 @@ struct DesignerView: View {
     }
 
     private func clearImage() {
-        withAnimation(.easeInOut(duration: 0.28)) {
+        withAnimation(.easeInOut(duration: 0.22)) {
             image = nil
             backdropImage = nil
         }
