@@ -148,7 +148,7 @@ struct DesignActivityWidget: Widget {
                     font: .caption2,
                     color: .primary
                 )
-                .frame(width: 44, height: 14)
+                .frame(width: 36, height: 14)
             } minimal: {
                 if let image {
                     Image(uiImage: image)
