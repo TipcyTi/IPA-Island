@@ -127,6 +127,7 @@ struct DesignActivityWidget: Widget {
                         .minimumScaleFactor(0.8)
                         .multilineTextAlignment(.center)
                         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+                        .padding(.trailing, 8)
                 }
                 .contentMargins(.all, 14)
             } compactLeading: {
@@ -147,7 +148,7 @@ struct DesignActivityWidget: Widget {
                     font: .caption2,
                     color: .primary
                 )
-                .frame(width: 52, height: 14)
+                .frame(width: 44, height: 14)
             } minimal: {
                 if let image {
                     Image(uiImage: image)
