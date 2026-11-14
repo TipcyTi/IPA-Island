@@ -2,6 +2,7 @@ import ActivityKit
 import PhotosUI
 import SwiftUI
 import UIKit
+import UniformTypeIdentifiers
 
 @main
 struct MyApp: App {
@@ -58,6 +59,8 @@ struct DesignerView: View {
 
     @State private var photoItem: PhotosPickerItem?
     @State private var showPicker = false
+    @State private var showFileImporter = false
+    @State private var showSourceDialog = false
     @State private var editing = false
     @State private var draft = ""
     @State private var image: UIImage?
@@ -125,6 +128,29 @@ struct DesignerView: View {
             }
         }
         .photosPicker(isPresented: $showPicker, selection: $photoItem, matching: .images)
+        .fileImporter(
+            isPresented: $showFileImporter,
+            allowedContentTypes: [.image],
+            allowsMultipleSelection: false
+        ) { result in
+            switch result {
+            case .success(let urls):
+                guard let url = urls.first else { return }
+                importImage(from: url)
+            case .failure:
+                notice = "无法读取所选文件。"
+            }
+        }
+        .confirmationDialog("选择封面", isPresented: $showSourceDialog, titleVisibility: .visible) {
+            Button("从相册选择") { showPicker = true }
+            Button("从文件选择") { showFileImporter = true }
+
+            if image != nil {
+                Button("移除封面", role: .destructive) { clearImage() }
+            }
+
+            Button("取消", role: .cancel) {}
+        }
         .onAppear {
             restoreThumbnail()
             syncActivity()
@@ -147,40 +173,14 @@ struct DesignerView: View {
     // MARK: - 顶部
 
     private func header(_ m: Metrics) -> some View {
-        HStack(alignment: .center, spacing: m.ratio(0.03)) {
-            VStack(alignment: .leading, spacing: m.ratio(0.008)) {
-                Text("MI ISLAND")
-                    .font(.system(size: m.ratio(0.028), weight: .semibold))
-                    .tracking(m.ratio(0.007))
-                    .foregroundStyle(Palette.caption)
+        HStack(spacing: 0) {
+            Text("MI ISLAND")
+                .font(.system(size: m.ratio(0.028), weight: .semibold))
+                .tracking(m.ratio(0.007))
+                .foregroundStyle(Palette.caption)
 
-                Text("实时活动设计器")
-                    .font(.system(size: m.ratio(0.066), weight: .black))
-                    .foregroundStyle(Palette.ink)
-            }
-
-            Spacer(minLength: m.ratio(0.02))
-
-            statusPill(m)
+            Spacer(minLength: 0)
         }
-    }
-
-    private func statusPill(_ m: Metrics) -> some View {
-        HStack(spacing: m.ratio(0.017)) {
-            Circle()
-                .fill(running ? Palette.ink : Palette.caption)
-                .frame(width: m.ratio(0.016), height: m.ratio(0.016))
-
-            Text(running ? "运行中" : "未启动")
-                .font(.system(size: m.ratio(0.030), weight: .semibold))
-                .foregroundStyle(Palette.ink)
-        }
-        .padding(.horizontal, m.ratio(0.030))
-        .padding(.vertical, m.ratio(0.018))
-        .background(Capsule(style: .continuous).fill(Palette.chip))
-        .overlay(Capsule(style: .continuous).strokeBorder(Palette.hairline, lineWidth: 1))
-        .animation(.easeInOut(duration: 0.2), value: running)
-        .accessibilityLabel(running ? "实时活动运行中" : "实时活动未启动")
     }
 
     // MARK: - 封面
@@ -197,12 +197,18 @@ struct DesignerView: View {
                     )
                     .shadow(color: shadowColor, radius: 24, x: 0, y: 12)
                     .contentShape(RoundedRectangle(cornerRadius: m.coverRadius, style: .continuous))
-                    .onTapGesture { showPicker = true }
+                    .onTapGesture { showSourceDialog = true }
                     .contextMenu {
                         Button {
                             showPicker = true
                         } label: {
-                            Label("更换封面", systemImage: "photo")
+                            Label("从相册选择", systemImage: "photo")
+                        }
+
+                        Button {
+                            showFileImporter = true
+                        } label: {
+                            Label("从文件选择", systemImage: "folder")
                         }
 
                         if image != nil {
@@ -213,26 +219,6 @@ struct DesignerView: View {
                             }
                         }
                     }
-
-                if image != nil {
-                    Menu {
-                        Button {
-                            showPicker = true
-                        } label: {
-                            Label("更换封面", systemImage: "photo")
-                        }
-
-                        Button(role: .destructive) {
-                            clearImage()
-                        } label: {
-                            Label("移除封面", systemImage: "trash")
-                        }
-                    } label: {
-                        menuBadge(m)
-                    }
-                    .buttonStyle(.plain)
-                    .padding(m.ratio(0.034))
-                }
             }
         }
     }
@@ -307,19 +293,6 @@ struct DesignerView: View {
                 )
                 .padding(m.ratio(0.026))
         )
-    }
-
-    private func menuBadge(_ m: Metrics) -> some View {
-        ZStack {
-            Circle().fill(.ultraThinMaterial)
-            Circle().strokeBorder(Color.white.opacity(0.35), lineWidth: 1)
-            Image(systemName: "ellipsis")
-                .font(.system(size: m.ratio(0.046), weight: .bold))
-                .foregroundStyle(.white)
-        }
-        .frame(width: m.ratio(0.105), height: m.ratio(0.105))
-        .shadow(color: .black.opacity(0.18), radius: 8, x: 0, y: 3)
-        .accessibilityLabel("封面操作")
     }
 
     // MARK: - 显示文字
@@ -410,36 +383,28 @@ struct DesignerView: View {
     // MARK: - 主操作
 
     private func actionSection(_ m: Metrics) -> some View {
-        VStack(spacing: m.ratio(0.018)) {
-            Button(action: toggleActivity) {
-                HStack(spacing: m.ratio(0.022)) {
-                    Image(systemName: running ? "stop.fill" : "play.fill")
-                        .font(.system(size: m.ratio(0.034), weight: .bold))
+        Button(action: toggleActivity) {
+            HStack(spacing: m.ratio(0.022)) {
+                Image(systemName: running ? "stop.fill" : "play.fill")
+                    .font(.system(size: m.ratio(0.034), weight: .bold))
 
-                    Text(running ? "停止实时活动" : "启动实时活动")
-                        .font(.system(size: m.ratio(0.043), weight: .bold))
-                }
-                .foregroundStyle(running ? Palette.ink : Palette.canvas)
-                .frame(maxWidth: .infinity)
-                .frame(height: m.ratio(0.145))
-                .background(
-                    RoundedRectangle(cornerRadius: m.cardRadius, style: .continuous)
-                        .fill(running ? Palette.chip : Palette.ink)
-                )
-                .overlay(
-                    RoundedRectangle(cornerRadius: m.cardRadius, style: .continuous)
-                        .strokeBorder(Palette.hairline, lineWidth: 1)
-                        .opacity(running ? 1 : 0)
-                )
+                Text(running ? "停止实时活动" : "启动实时活动")
+                    .font(.system(size: m.ratio(0.043), weight: .bold))
             }
-            .buttonStyle(.plain)
-
-            Text(running ? "改文字或换封面会自动同步，无需再操作" : "启动后会出现在锁屏和灵动岛上")
-                .font(.system(size: m.ratio(0.030)))
-                .foregroundStyle(Palette.caption)
-                .multilineTextAlignment(.center)
-                .frame(maxWidth: .infinity)
+            .foregroundStyle(running ? Palette.ink : Palette.canvas)
+            .frame(maxWidth: .infinity)
+            .frame(height: m.ratio(0.145))
+            .background(
+                RoundedRectangle(cornerRadius: m.cardRadius, style: .continuous)
+                    .fill(running ? Palette.chip : Palette.ink)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: m.cardRadius, style: .continuous)
+                    .strokeBorder(Palette.hairline, lineWidth: 1)
+                    .opacity(running ? 1 : 0)
+            )
         }
+        .buttonStyle(.plain)
         .animation(.easeInOut(duration: 0.2), value: running)
     }
 
@@ -495,6 +460,24 @@ struct DesignerView: View {
         guard let data = try? await item.loadTransferable(type: Data.self),
               let picked = UIImage(data: data) else { return }
 
+        apply(picked)
+    }
+
+    /// 从「文件」App 或其它文件提供方导入图片。
+    private func importImage(from url: URL) {
+        let scoped = url.startAccessingSecurityScopedResource()
+        defer { if scoped { url.stopAccessingSecurityScopedResource() } }
+
+        guard let data = try? Data(contentsOf: url),
+              let picked = UIImage(data: data) else {
+            notice = "这个文件不是可用的图片。"
+            return
+        }
+
+        apply(picked)
+    }
+
+    private func apply(_ picked: UIImage) {
         image = picked
         imageBase64 = makeThumbnail(from: picked)?.base64EncodedString() ?? ""
 
