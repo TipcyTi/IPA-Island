@@ -1,5 +1,4 @@
 import ActivityKit
-import CoreImage
 import PhotosUI
 import SwiftUI
 import UIKit
@@ -21,12 +20,14 @@ struct Metrics {
 
     func ratio(_ value: CGFloat) -> CGFloat { width * value }
 
-    /// 图片两侧留白，同时决定左上文本与右上开关的左右边界
-    var margin: CGFloat { ratio(0.07) }
-    var titleSize: CGFloat { ratio(0.12) }
-    var imageSide: CGFloat { ratio(0.86) }
+    /// 图片两侧留白，同时决定文字与开关的左右边界
+    var margin: CGFloat { ratio(0.10) }
+    var imageSide: CGFloat { ratio(0.80) }
+    var titleSize: CGFloat { ratio(0.095) }
+    var actionSize: CGFloat { ratio(0.048) }
+    var gap: CGFloat { ratio(0.055) }
+    var topInset: CGFloat { ratio(0.08) }
     var blockRadius: CGFloat { ratio(0.02) }
-    var gap: CGFloat { ratio(0.04) }
 }
 
 /// 封面图落盘，杀进程后还在。
@@ -60,14 +61,12 @@ struct DesignerView: View {
     @State private var draft = ""
     @State private var image: UIImage?
     @State private var imageBase64 = ""
-    @State private var imageIsDark = false
     @State private var activity: Activity<DesignActivityAttributes>?
     @State private var updateTask: Task<Void, Never>?
 
     init() {
         if let data = CoverStore.load(), let saved = UIImage(data: data) {
             _image = State(initialValue: saved)
-            _imageIsDark = State(initialValue: Self.isDarkImage(saved))
         }
     }
 
@@ -84,26 +83,9 @@ struct DesignerView: View {
 
     private var running: Bool { activity != nil }
 
-    /// 背景偏暗时用白字，偏亮时用黑字，元素颜色只在这两个极值之间切换。
-    private var isDarkBackdrop: Bool {
-        image == nil ? colorScheme == .dark : imageIsDark
-    }
-
-    private var fg: Color { isDarkBackdrop ? .white : .black }
-    private var bg: Color { isDarkBackdrop ? .black : .white }
-
-    private var toggleBinding: Binding<Bool> {
-        Binding(
-            get: { running },
-            set: { on in
-                if on {
-                    start()
-                } else {
-                    stop()
-                }
-            }
-        )
-    }
+    private var isDark: Bool { colorScheme == .dark }
+    private var fg: Color { isDark ? .white : .black }
+    private var bg: Color { isDark ? .black : .white }
 
     var body: some View {
         GeometryReader { geo in
@@ -116,7 +98,10 @@ struct DesignerView: View {
                 }
         }
         .photosPicker(isPresented: $showPicker, selection: $photoItem, matching: .images)
-        .onAppear { restoreThumbnail() }
+        .onAppear {
+            restoreThumbnail()
+            syncActivity()
+        }
         .onChange(of: photoItem) { _, item in
             guard let item else { return }
             Task { @MainActor in await loadImage(from: item) }
@@ -135,8 +120,10 @@ struct DesignerView: View {
     }
 
     private func content(_ m: Metrics) -> some View {
-        VStack(spacing: 0) {
-            HStack(spacing: m.gap) {
+        VStack(alignment: .leading, spacing: m.gap) {
+            cover(m)
+
+            HStack(alignment: .firstTextBaseline, spacing: m.gap) {
                 Button {
                     draft = title
                     editing = true
@@ -146,36 +133,35 @@ struct DesignerView: View {
                         .foregroundStyle(fg)
                         .lineLimit(1)
                         .minimumScaleFactor(0.5)
-                        .shadow(
-                            color: .black.opacity(0.22),
-                            radius: m.ratio(0.02),
-                            x: 0,
-                            y: m.ratio(0.008)
-                        )
                 }
                 .buttonStyle(.plain)
 
                 Spacer(minLength: 0)
 
-                Toggle("", isOn: toggleBinding)
-                    .labelsHidden()
-                    .tint(fg)
-                    .scaleEffect(m.ratio(0.0028))
+                Button {
+                    if running {
+                        stop()
+                    } else {
+                        start()
+                    }
+                } label: {
+                    Text(running ? "停止" : "启动")
+                        .font(.system(size: m.actionSize, weight: .black))
+                        .foregroundStyle(fg)
+                        .opacity(running ? 1 : 0.45)
+                }
+                .buttonStyle(.plain)
             }
-
-            Spacer(minLength: 0)
-
-            cover(m)
 
             Spacer(minLength: 0)
         }
         .padding(.horizontal, m.margin)
-        .padding(.vertical, m.ratio(0.10))
+        .padding(.top, m.topInset)
     }
 
     // MARK: - 背景
 
-    /// 铺满整屏的模糊封面，不叠任何底色，边缘不透明、不透出页面底色。
+    /// 模糊封面只淡淡透出来，页面以底色为主。
     @ViewBuilder
     private func backdrop(_ m: Metrics) -> some View {
         if let image {
@@ -183,7 +169,8 @@ struct DesignerView: View {
                 .resizable()
                 .scaledToFill()
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .blur(radius: m.ratio(0.14), opaque: true)
+                .blur(radius: m.ratio(0.16), opaque: true)
+                .overlay(Palette.canvas.opacity(0.82))
                 .clipped()
                 .allowsHitTesting(false)
         } else {
@@ -215,7 +202,7 @@ struct DesignerView: View {
             .clipShape(RoundedRectangle(cornerRadius: m.blockRadius, style: .continuous))
             .overlay(
                 RoundedRectangle(cornerRadius: m.blockRadius, style: .continuous)
-                    .strokeBorder(fg.opacity(0.15), lineWidth: 1)
+                    .strokeBorder(fg.opacity(0.12), lineWidth: 1)
             )
             .contentShape(Rectangle())
         }
@@ -239,7 +226,6 @@ struct DesignerView: View {
               let picked = UIImage(data: data) else { return }
 
         image = picked
-        imageIsDark = Self.isDarkImage(picked)
         imageBase64 = makeThumbnail(from: picked)?.base64EncodedString() ?? ""
 
         if let stored = downscale(picked, to: 1600, quality: 0.85) {
@@ -251,7 +237,6 @@ struct DesignerView: View {
         image = nil
         imageBase64 = ""
         photoItem = nil
-        imageIsDark = false
         CoverStore.clear()
     }
 
@@ -260,32 +245,6 @@ struct DesignerView: View {
     private func restoreThumbnail() {
         guard let image, imageBase64.isEmpty else { return }
         imageBase64 = makeThumbnail(from: image)?.base64EncodedString() ?? ""
-    }
-
-    /// 取图像平均亮度，决定元素用黑还是白。
-    private static func isDarkImage(_ image: UIImage) -> Bool {
-        guard let cg = image.cgImage else { return false }
-
-        let ci = CIImage(cgImage: cg)
-        guard let filter = CIFilter(
-            name: "CIAreaAverage",
-            parameters: [kCIInputImageKey: ci, kCIInputExtentKey: CIVector(cgRect: ci.extent)]
-        ), let output = filter.outputImage else {
-            return false
-        }
-
-        var pixel = [UInt8](repeating: 0, count: 4)
-        CIContext().render(
-            output,
-            toBitmap: &pixel,
-            rowBytes: 4,
-            bounds: CGRect(x: 0, y: 0, width: 1, height: 1),
-            format: .RGBA8,
-            colorSpace: CGColorSpaceCreateDeviceRGB()
-        )
-
-        let luminance = (0.299 * Double(pixel[0]) + 0.587 * Double(pixel[1]) + 0.114 * Double(pixel[2])) / 255
-        return luminance < 0.55
     }
 
     /// 实时活动状态有 4KB 上限，只能放缩略图：逐步压到 ≤1600 字节。
@@ -334,23 +293,37 @@ struct DesignerView: View {
 
     // MARK: - ActivityKit
 
+    /// 只允许存在一个活动：App 重新打开时直接接管已有的那个。
+    private func syncActivity() {
+        activity = Activity<DesignActivityAttributes>.activities.first
+    }
+
     private func start() {
         guard !running else { return }
         guard ActivityAuthorizationInfo().areActivitiesEnabled else { return }
 
         let content = state
         Task { @MainActor in
+            // 先清掉可能残留的活动，确保全局只有一个
+            for old in Activity<DesignActivityAttributes>.activities {
+                await old.end(nil, dismissalPolicy: .immediate)
+            }
+
             guard let newActivity = try? Activity.request(
                 attributes: DesignActivityAttributes(),
                 content: ActivityContent(state: content, staleDate: nil),
                 pushType: nil
             ) else { return }
+
             activity = newActivity
         }
     }
 
     private func stop() {
-        guard let activity else { return }
+        guard let activity else {
+            syncActivity()
+            return
+        }
 
         Task { @MainActor in
             await activity.end(nil, dismissalPolicy: .immediate)
