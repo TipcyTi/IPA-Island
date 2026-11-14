@@ -90,10 +90,10 @@ struct DesignActivityWidget: Widget {
             LockScreenView(context: context)
         } dynamicIsland: { context in
             let image = decode(context.state.imageBase64)
-            let coverSide: CGFloat = 56
+            let coverSide: CGFloat = 52
 
             return DynamicIsland {
-                // 展开态只保留封面与文字：左侧封面、右侧标题，并留出圆角安全边距
+                // 展开态只保留封面与标题：左图右文，文字在区域内垂直居中
                 DynamicIslandExpandedRegion(.leading) {
                     Group {
                         if let image {
@@ -116,18 +116,25 @@ struct DesignActivityWidget: Widget {
                         }
                     }
                 }
-                .contentMargins([.leading, .top, .bottom], 6)
+                .contentMargins([.leading, .top, .bottom], 8)
 
                 DynamicIslandExpandedRegion(.trailing) {
-                    Text(context.state.title)
-                        .font(.system(size: 18, weight: .semibold))
-                        .foregroundStyle(.primary)
-                        .lineLimit(3)
-                        .minimumScaleFactor(0.7)
-                        .multilineTextAlignment(.leading)
-                        .frame(maxWidth: .infinity, alignment: .leading)
+                    VStack(alignment: .leading, spacing: 0) {
+                        Spacer(minLength: 0)
+
+                        Text(context.state.title)
+                            .font(.system(size: 19, weight: .semibold))
+                            .foregroundStyle(.primary)
+                            .lineLimit(2)
+                            .minimumScaleFactor(0.8)
+                            .multilineTextAlignment(.leading)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+
+                        Spacer(minLength: 0)
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
                 }
-                .contentMargins([.trailing, .top, .bottom], 8)
+                .contentMargins([.trailing, .top, .bottom], 10)
             } compactLeading: {
                 if let image {
                     Image(uiImage: image)
