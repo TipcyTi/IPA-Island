@@ -456,7 +456,7 @@ struct DesignerView: View {
                     .scaledToFill()
                     .blur(radius: m.ratio(0.13), opaque: true)
 
-                Palette.canvas.opacity(colorScheme == .dark ? 0.74 : 0.58)
+                Palette.canvas.opacity(colorScheme == .dark ? 0.82 : 0.80)
             }
         }
         .clipped()
