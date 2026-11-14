@@ -90,11 +90,10 @@ struct DesignActivityWidget: Widget {
             LockScreenView(context: context)
         } dynamicIsland: { context in
             let image = decode(context.state.imageBase64)
-            let coverSide: CGFloat = 36
-            let regionWidth: CGFloat = 46
+            let coverSide: CGFloat = 54
 
             return DynamicIsland {
-                // 左边：正方形小图，宽度刚好放下
+                // 展开态：左图、右上品牌、底部大字标题，填满整个卡片
                 DynamicIslandExpandedRegion(.leading) {
                     Group {
                         if let image {
@@ -103,25 +102,44 @@ struct DesignActivityWidget: Widget {
                                 .scaledToFill()
                                 .frame(width: coverSide, height: coverSide)
                                 .clipShape(
-                                    RoundedRectangle(cornerRadius: coverSide * 0.28, style: .continuous)
+                                    RoundedRectangle(cornerRadius: coverSide * 0.30, style: .continuous)
                                 )
                         } else {
-                            RoundedRectangle(cornerRadius: coverSide * 0.28, style: .continuous)
-                                .fill(.white.opacity(0.12))
+                            RoundedRectangle(cornerRadius: coverSide * 0.30, style: .continuous)
+                                .fill(.white.opacity(0.10))
                                 .frame(width: coverSide, height: coverSide)
+                                .overlay {
+                                    Image(systemName: "photo")
+                                        .font(.system(size: 18, weight: .medium))
+                                        .foregroundStyle(.secondary)
+                                }
                         }
                     }
-                    .frame(width: regionWidth)
                 }
 
-                // 右边：与左边等宽，文字在框内滚动
                 DynamicIslandExpandedRegion(.trailing) {
-                    MarqueeText(
-                        text: context.state.title,
-                        font: .headline,
-                        color: .primary
-                    )
-                    .frame(width: regionWidth, height: 20)
+                    VStack(alignment: .trailing, spacing: 3) {
+                        Text("MI ISLAND")
+                            .font(.system(size: 10, weight: .semibold))
+                            .tracking(1.6)
+                            .foregroundStyle(.secondary)
+
+                        Text("实时活动")
+                            .font(.system(size: 11))
+                            .foregroundStyle(.secondary)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .trailing)
+                }
+
+                DynamicIslandExpandedRegion(.bottom) {
+                    Text(context.state.title)
+                        .font(.system(size: 21, weight: .bold))
+                        .foregroundStyle(.primary)
+                        .lineLimit(2)
+                        .minimumScaleFactor(0.6)
+                        .multilineTextAlignment(.leading)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.top, 2)
                 }
             } compactLeading: {
                 if let image {
