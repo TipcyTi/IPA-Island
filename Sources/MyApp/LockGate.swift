@@ -46,7 +46,7 @@ struct RootView: View {
                             .font(.system(size: m.ratio(0.036)))
                             .foregroundStyle(Palette.caption)
                             .multilineTextAlignment(.center)
-                            .padding(.horizontal, m.margin)
+                            .padding(.horizontal, m.ratio(0.08))
                     }
                 }
             }
