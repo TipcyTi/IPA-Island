@@ -73,9 +73,10 @@ struct LockScreenView: View {
             }
 
             Text(context.state.title)
-                .font(.headline)
+                .font(.system(size: 22, weight: .semibold))
                 .foregroundStyle(.primary)
                 .lineLimit(2)
+                .minimumScaleFactor(0.8)
                 .truncationMode(.tail)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .frame(height: 54, alignment: .center)
@@ -149,7 +150,7 @@ struct DesignActivityWidget: Widget {
                         .truncationMode(.tail)
                         .multilineTextAlignment(.center)
                         .frame(maxWidth: .infinity, alignment: .center)
-                        .frame(height: coverSide, alignment: .center)
+                        .frame(height: coverSide, alignment: .bottom)
                 }
                 .contentMargins(.all, 6)
             } compactLeading: {
