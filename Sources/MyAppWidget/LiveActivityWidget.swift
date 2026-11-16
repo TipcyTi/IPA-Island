@@ -76,7 +76,9 @@ struct LockScreenView: View {
                 .font(.headline)
                 .foregroundStyle(.primary)
                 .lineLimit(2)
+                .truncationMode(.tail)
                 .frame(maxWidth: .infinity, alignment: .leading)
+                .frame(height: 54, alignment: .center)
 
             Image(systemName: symbol)
                 .resizable()
@@ -94,10 +96,11 @@ struct DesignActivityWidget: Widget {
             LockScreenView(context: context)
         } dynamicIsland: { context in
             let image = decode(context.state.imageBase64)
+            let symbol = symbolName(for: context.state.symbol)
             let coverSide: CGFloat = 50
 
             return DynamicIsland {
-                // 展开态：左列放封面，右列放标题，各自在列内水平 + 垂直居中
+                // 展开态：左封面、右图标，标题居中放在硬件下方
                 DynamicIslandExpandedRegion(.leading) {
                     Group {
                         if let image {
@@ -124,16 +127,29 @@ struct DesignActivityWidget: Widget {
                 .contentMargins(.all, 14)
 
                 DynamicIslandExpandedRegion(.trailing) {
+                    ZStack {
+                        Circle()
+                            .fill(.white.opacity(0.14))
+
+                        Image(systemName: symbol)
+                            .font(.system(size: 26, weight: .semibold))
+                            .foregroundStyle(.primary)
+                    }
+                    .frame(width: coverSide, height: coverSide)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+                }
+                .contentMargins(.all, 14)
+
+                DynamicIslandExpandedRegion(.bottom) {
                     Text(context.state.title)
-                        .font(.system(size: 19, weight: .semibold))
+                        .font(.system(size: 17, weight: .semibold))
                         .foregroundStyle(.primary)
                         .lineLimit(2)
                         .minimumScaleFactor(0.8)
                         .multilineTextAlignment(.center)
-                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
-                        .padding(.trailing, 8)
+                        .frame(maxWidth: .infinity, alignment: .center)
                 }
-                .contentMargins(.all, 14)
+                .contentMargins(.all, 12)
             } compactLeading: {
                 if let image {
                     Image(uiImage: image)
@@ -151,7 +167,7 @@ struct DesignActivityWidget: Widget {
                     Circle()
                         .fill(.white.opacity(0.14))
 
-                    Image(systemName: symbolName(for: context.state.symbol))
+                    Image(systemName: symbol)
                         .font(.system(size: 12, weight: .semibold))
                         .foregroundStyle(.primary)
                 }
