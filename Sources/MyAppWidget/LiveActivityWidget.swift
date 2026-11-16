@@ -73,10 +73,10 @@ struct LockScreenView: View {
             }
 
             Text(context.state.title)
-                .font(.system(size: 22, weight: .semibold))
+                .font(.system(size: 26, weight: .semibold))
                 .foregroundStyle(.primary)
                 .lineLimit(2)
-                .minimumScaleFactor(0.8)
+                .minimumScaleFactor(0.75)
                 .truncationMode(.tail)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .frame(height: 54, alignment: .center)
@@ -128,29 +128,26 @@ struct DesignActivityWidget: Widget {
                 .contentMargins(.all, 14)
 
                 DynamicIslandExpandedRegion(.trailing) {
-                    ZStack {
-                        Circle()
-                            .fill(.white.opacity(0.14))
-
-                        Image(systemName: symbol)
-                            .font(.system(size: 30, weight: .semibold))
-                            .foregroundStyle(.primary)
-                    }
-                    .frame(width: coverSide, height: coverSide)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+                    Image(systemName: symbol)
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: coverSide, height: coverSide)
+                        .foregroundStyle(.primary)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
                 }
                 .contentMargins(.all, 14)
 
                 DynamicIslandExpandedRegion(.center) {
                     Text(context.state.title)
-                        .font(.system(size: 16, weight: .semibold))
+                        .font(.system(size: 28, weight: .semibold))
                         .foregroundStyle(.primary)
                         .lineLimit(2)
                         .minimumScaleFactor(0.8)
                         .truncationMode(.tail)
                         .multilineTextAlignment(.center)
                         .frame(maxWidth: .infinity, alignment: .center)
-                        .frame(height: coverSide, alignment: .bottom)
+                        .frame(height: 70, alignment: .bottom)
+                        .padding(.bottom, 44)
                 }
                 .contentMargins(.all, 6)
             } compactLeading: {
