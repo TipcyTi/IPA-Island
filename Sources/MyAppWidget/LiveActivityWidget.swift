@@ -140,16 +140,18 @@ struct DesignActivityWidget: Widget {
                 }
                 .contentMargins(.all, 14)
 
-                DynamicIslandExpandedRegion(.bottom) {
+                DynamicIslandExpandedRegion(.center) {
                     Text(context.state.title)
-                        .font(.system(size: 17, weight: .semibold))
+                        .font(.system(size: 15, weight: .semibold))
                         .foregroundStyle(.primary)
                         .lineLimit(2)
                         .minimumScaleFactor(0.8)
+                        .truncationMode(.tail)
                         .multilineTextAlignment(.center)
                         .frame(maxWidth: .infinity, alignment: .center)
+                        .frame(height: coverSide, alignment: .center)
                 }
-                .contentMargins(.all, 12)
+                .contentMargins(.all, 6)
             } compactLeading: {
                 if let image {
                     Image(uiImage: image)
