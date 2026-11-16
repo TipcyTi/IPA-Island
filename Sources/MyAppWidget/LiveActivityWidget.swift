@@ -73,10 +73,9 @@ struct LockScreenView: View {
             }
 
             Text(context.state.title)
-                .font(.system(size: 26, weight: .semibold))
+                .font(.system(size: 45, weight: .semibold))
                 .foregroundStyle(.primary)
-                .lineLimit(2)
-                .minimumScaleFactor(0.75)
+                .lineLimit(1)
                 .truncationMode(.tail)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .frame(height: 54, alignment: .center)
@@ -98,7 +97,7 @@ struct DesignActivityWidget: Widget {
         } dynamicIsland: { context in
             let image = decode(context.state.imageBase64)
             let symbol = symbolName(for: context.state.symbol)
-            let coverSide: CGFloat = 60
+            let coverSide: CGFloat = 44
 
             return DynamicIsland {
                 // 展开态：左封面、右图标，标题居中放在硬件下方
@@ -139,17 +138,16 @@ struct DesignActivityWidget: Widget {
 
                 DynamicIslandExpandedRegion(.center) {
                     Text(context.state.title)
-                        .font(.system(size: 28, weight: .semibold))
+                        .font(.system(size: 14, weight: .semibold))
                         .foregroundStyle(.primary)
                         .lineLimit(2)
                         .minimumScaleFactor(0.8)
                         .truncationMode(.tail)
                         .multilineTextAlignment(.center)
                         .frame(maxWidth: .infinity, alignment: .center)
-                        .frame(height: 70, alignment: .bottom)
-                        .padding(.bottom, 44)
+                        .frame(height: coverSide, alignment: .bottom)
                 }
-                .contentMargins(.all, 6)
+                .contentMargins(.all, 4)
             } compactLeading: {
                 if let image {
                     Image(uiImage: image)
