@@ -8,6 +8,11 @@ private func decode(_ base64: String) -> UIImage? {
     return UIImage(data: data)
 }
 
+private func symbolName(for raw: String?) -> String {
+    let name = raw ?? ""
+    return name.isEmpty ? "sparkles" : name
+}
+
 /// 只走一行：放得下就静态显示，放不下就横向来回滚动。
 struct MarqueeText: View {
     let text: String
@@ -143,12 +148,15 @@ struct DesignActivityWidget: Widget {
                         .frame(width: 6, height: 6)
                 }
             } compactTrailing: {
-                MarqueeText(
-                    text: context.state.title,
-                    font: .caption2,
-                    color: .primary
-                )
-                .frame(width: 22, height: 14)
+                ZStack {
+                    Circle()
+                        .fill(.white.opacity(0.14))
+
+                    Image(systemName: symbolName(for: context.state.symbol))
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundStyle(.primary)
+                }
+                .frame(width: 22, height: 22)
             } minimal: {
                 if let image {
                     Image(uiImage: image)

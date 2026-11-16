@@ -56,6 +56,7 @@ enum CoverStore {
 struct DesignerView: View {
     @Environment(\.colorScheme) private var colorScheme
     @AppStorage("mi.island.title") private var title = "Island"
+    @AppStorage("mi.island.symbol") private var symbol = "sparkles"
 
     @State private var photoItem: PhotosPickerItem?
     @State private var showPicker = false
@@ -86,7 +87,8 @@ struct DesignerView: View {
     private var state: DesignActivityAttributes.ContentState {
         DesignActivityAttributes.ContentState(
             title: displayTitle,
-            imageBase64: imageBase64
+            imageBase64: imageBase64,
+            symbol: symbol
         )
     }
 
@@ -119,6 +121,8 @@ struct DesignerView: View {
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
 
                     titleCard(m)
+
+                    symbolCard(m)
 
                     actionSection(m)
                 }
@@ -382,6 +386,62 @@ struct DesignerView: View {
         )
         .shadow(color: shadowColor, radius: 16, x: 0, y: 8)
         .animation(.snappy(duration: 0.26), value: editing)
+    }
+
+    // MARK: - 图标
+
+    private let symbolChoices = [
+        "sparkles", "bolt.fill", "heart.fill", "star.fill", "moon.stars.fill",
+        "flame.fill", "drop.fill", "leaf.fill", "cloud.fill", "sun.max.fill",
+        "snowflake", "wind", "music.note", "headphones", "camera.fill",
+        "photo.fill", "video.fill", "mic.fill", "bookmark.fill", "flag.fill",
+        "bell.fill", "cart.fill", "gift.fill", "gamecontroller.fill",
+        "tennisball.fill", "bicycle", "car.fill", "airplane", "map.fill",
+        "clock.fill", "calendar", "checkmark.seal.fill", "shield.fill",
+        "key.fill", "person.fill", "pawprint.fill", "crown.fill", "atom"
+    ]
+
+    private func symbolCard(_ m: Metrics) -> some View {
+        VStack(alignment: .leading, spacing: m.ratio(0.016)) {
+            Text("图标")
+                .font(.system(size: m.ratio(0.030), weight: .semibold))
+                .foregroundStyle(Palette.caption)
+
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: m.ratio(0.018)) {
+                    ForEach(symbolChoices, id: \.self) { name in
+                        Button {
+                            symbol = name
+                        } label: {
+                            ZStack {
+                                Circle()
+                                    .fill(symbol == name ? Palette.ink : Palette.chip)
+
+                                Image(systemName: name)
+                                    .font(.system(size: m.ratio(0.036), weight: .semibold))
+                                    .foregroundStyle(symbol == name ? Palette.canvas : Palette.ink)
+                            }
+                            .frame(width: m.ratio(0.088), height: m.ratio(0.088))
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel(name)
+                    }
+                }
+                .padding(.vertical, 1)
+            }
+        }
+        .padding(.horizontal, m.ratio(0.044))
+        .padding(.vertical, m.ratio(0.030))
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(
+            RoundedRectangle(cornerRadius: m.cardRadius, style: .continuous)
+                .fill(Palette.card)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: m.cardRadius, style: .continuous)
+                .strokeBorder(Palette.hairline, lineWidth: 1)
+        )
+        .shadow(color: shadowColor, radius: 16, x: 0, y: 8)
     }
 
     // MARK: - 主操作
