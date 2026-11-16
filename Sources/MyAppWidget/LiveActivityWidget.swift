@@ -98,7 +98,7 @@ struct DesignActivityWidget: Widget {
         } dynamicIsland: { context in
             let image = decode(context.state.imageBase64)
             let symbol = symbolName(for: context.state.symbol)
-            let coverSide: CGFloat = 50
+            let coverSide: CGFloat = 60
 
             return DynamicIsland {
                 // 展开态：左封面、右图标，标题居中放在硬件下方
@@ -133,7 +133,7 @@ struct DesignActivityWidget: Widget {
                             .fill(.white.opacity(0.14))
 
                         Image(systemName: symbol)
-                            .font(.system(size: 26, weight: .semibold))
+                            .font(.system(size: 30, weight: .semibold))
                             .foregroundStyle(.primary)
                     }
                     .frame(width: coverSide, height: coverSide)
@@ -143,7 +143,7 @@ struct DesignActivityWidget: Widget {
 
                 DynamicIslandExpandedRegion(.center) {
                     Text(context.state.title)
-                        .font(.system(size: 15, weight: .semibold))
+                        .font(.system(size: 17, weight: .semibold))
                         .foregroundStyle(.primary)
                         .lineLimit(2)
                         .minimumScaleFactor(0.8)
