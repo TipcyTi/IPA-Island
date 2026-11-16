@@ -143,14 +143,14 @@ struct DesignActivityWidget: Widget {
 
                 DynamicIslandExpandedRegion(.center) {
                     Text(context.state.title)
-                        .font(.system(size: 22, weight: .semibold))
+                        .font(.system(size: 16, weight: .semibold))
                         .foregroundStyle(.primary)
                         .lineLimit(2)
                         .minimumScaleFactor(0.8)
                         .truncationMode(.tail)
                         .multilineTextAlignment(.center)
                         .frame(maxWidth: .infinity, alignment: .center)
-                        .frame(height: coverSide, alignment: .top)
+                        .frame(height: coverSide, alignment: .bottom)
                 }
                 .contentMargins(.all, 6)
             } compactLeading: {
