@@ -140,14 +140,13 @@ struct DesignActivityWidget: Widget {
                     Text(context.state.title)
                         .font(.system(size: 14, weight: .semibold))
                         .foregroundStyle(.primary)
-                        .lineLimit(2)
-                        .minimumScaleFactor(0.8)
+                        .lineLimit(1)
                         .truncationMode(.tail)
-                        .multilineTextAlignment(.center)
                         .frame(maxWidth: .infinity, alignment: .center)
-                        .frame(height: coverSide, alignment: .bottom)
+                        .frame(maxHeight: .infinity, alignment: .bottom)
+                        .padding(.bottom, 9)
                 }
-                .contentMargins(.all, 4)
+                .contentMargins(.all, 0)
             } compactLeading: {
                 if let image {
                     Image(uiImage: image)
