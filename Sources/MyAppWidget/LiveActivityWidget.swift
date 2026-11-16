@@ -73,7 +73,7 @@ struct LockScreenView: View {
             }
 
             Text(context.state.title)
-                .font(.system(size: 45, weight: .semibold))
+                .font(.system(size: 22, weight: .semibold))
                 .foregroundStyle(.primary)
                 .lineLimit(1)
                 .truncationMode(.tail)
@@ -97,7 +97,7 @@ struct DesignActivityWidget: Widget {
         } dynamicIsland: { context in
             let image = decode(context.state.imageBase64)
             let symbol = symbolName(for: context.state.symbol)
-            let coverSide: CGFloat = 44
+            let coverSide: CGFloat = 40
 
             return DynamicIsland {
                 // 展开态：左封面、右图标，标题居中放在硬件下方
@@ -124,7 +124,7 @@ struct DesignActivityWidget: Widget {
                     }
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
                 }
-                .contentMargins(.all, 14)
+                .contentMargins(.all, 8)
 
                 DynamicIslandExpandedRegion(.trailing) {
                     Image(systemName: symbol)
@@ -134,17 +134,15 @@ struct DesignActivityWidget: Widget {
                         .foregroundStyle(.primary)
                         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
                 }
-                .contentMargins(.all, 14)
+                .contentMargins(.all, 8)
 
                 DynamicIslandExpandedRegion(.center) {
                     Text(context.state.title)
-                        .font(.system(size: 14, weight: .semibold))
+                        .font(.system(size: 12, weight: .semibold))
                         .foregroundStyle(.primary)
                         .lineLimit(1)
                         .truncationMode(.tail)
-                        .frame(maxWidth: .infinity, alignment: .center)
-                        .frame(maxHeight: .infinity, alignment: .bottom)
-                        .padding(.bottom, 9)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
                 }
                 .contentMargins(.all, 0)
             } compactLeading: {
