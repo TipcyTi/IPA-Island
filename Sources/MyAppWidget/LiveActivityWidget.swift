@@ -55,35 +55,34 @@ struct MarqueeText: View {
     }
 }
 
-/// 锁屏：有图 → 左图右文；无图 → 只有一行文字。
+/// 锁屏：有图 → 左图 + 中间文字 + 右侧同尺寸图标；无图 → 文字 + 右侧图标。
 struct LockScreenView: View {
     let context: ActivityViewContext<DesignActivityAttributes>
 
     private var image: UIImage? { decode(context.state.imageBase64) }
+    private var symbol: String { symbolName(for: context.state.symbol) }
 
     var body: some View {
-        Group {
+        HStack(alignment: .center, spacing: 14) {
             if let image {
-                HStack(alignment: .center, spacing: 14) {
-                    Image(uiImage: image)
-                        .resizable()
-                        .scaledToFill()
-                        .frame(width: 54, height: 54)
-                        .clipShape(RoundedRectangle(cornerRadius: 15, style: .continuous))
-
-                    Text(context.state.title)
-                        .font(.headline)
-                        .foregroundStyle(.primary)
-                        .lineLimit(2)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                }
-            } else {
-                Text(context.state.title)
-                    .font(.headline)
-                    .foregroundStyle(.primary)
-                    .lineLimit(2)
-                    .frame(maxWidth: .infinity, alignment: .leading)
+                Image(uiImage: image)
+                    .resizable()
+                    .scaledToFill()
+                    .frame(width: 54, height: 54)
+                    .clipShape(RoundedRectangle(cornerRadius: 15, style: .continuous))
             }
+
+            Text(context.state.title)
+                .font(.headline)
+                .foregroundStyle(.primary)
+                .lineLimit(2)
+                .frame(maxWidth: .infinity, alignment: .leading)
+
+            Image(systemName: symbol)
+                .resizable()
+                .scaledToFit()
+                .frame(width: 54, height: 54)
+                .foregroundStyle(.primary)
         }
         .padding(16)
     }
