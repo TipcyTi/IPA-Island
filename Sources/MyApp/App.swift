@@ -613,8 +613,8 @@ struct DesignerView: View {
 
     /// 实时活动状态有 4KB 上限，只能放缩略图：在预算内取尽可能清晰的一张。
     private func makeThumbnail(from image: UIImage) -> Data? {
-        let sides: [CGFloat] = [160, 144, 128, 112, 96, 80, 64, 48, 40, 32]
-        let qualities: [CGFloat] = [0.6, 0.5, 0.4, 0.3]
+        let sides: [CGFloat] = [200, 184, 168, 160, 144, 128, 112, 96, 80, 64, 48, 40, 32]
+        let qualities: [CGFloat] = [0.65, 0.55, 0.45, 0.35, 0.25]
 
         var smallest: Data?
 
@@ -624,7 +624,7 @@ struct DesignerView: View {
                 if smallest == nil || data.count < (smallest?.count ?? Int.max) {
                     smallest = data
                 }
-                if data.count <= 2200 {
+                if data.count <= 2800 {
                     return data
                 }
             }
