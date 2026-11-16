@@ -97,7 +97,7 @@ struct DesignActivityWidget: Widget {
         } dynamicIsland: { context in
             let image = decode(context.state.imageBase64)
             let symbol = symbolName(for: context.state.symbol)
-            let coverSide: CGFloat = 44
+            let coverSide: CGFloat = 56
 
             return DynamicIsland {
                 // 展开态：左封面、右图标，标题居中放在硬件下方
@@ -124,7 +124,7 @@ struct DesignActivityWidget: Widget {
                     }
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
                 }
-                .contentMargins(.all, 10)
+                .contentMargins(.all, 14)
 
                 DynamicIslandExpandedRegion(.trailing) {
                     Image(systemName: symbol)
@@ -134,19 +134,19 @@ struct DesignActivityWidget: Widget {
                         .foregroundStyle(.primary)
                         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
                 }
-                .contentMargins(.all, 10)
+                .contentMargins(.all, 14)
 
-                DynamicIslandExpandedRegion(.bottom) {
+                DynamicIslandExpandedRegion(.center) {
                     Text(context.state.title)
-                        .font(.system(size: 14, weight: .semibold))
+                        .font(.system(size: 18, weight: .semibold))
                         .foregroundStyle(.primary)
                         .lineLimit(1)
                         .truncationMode(.tail)
                         .frame(maxWidth: .infinity, alignment: .center)
+                        .frame(maxHeight: .infinity, alignment: .bottom)
+                        .padding(.bottom, 14)
                 }
-                .contentMargins(.horizontal, 18)
-                .contentMargins(.top, 2)
-                .contentMargins(.bottom, 12)
+                .contentMargins(.all, 0)
             } compactLeading: {
                 if let image {
                     Image(uiImage: image)
