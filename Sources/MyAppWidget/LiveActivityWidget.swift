@@ -138,12 +138,12 @@ struct DesignActivityWidget: Widget {
 
                 DynamicIslandExpandedRegion(.center) {
                     Text(context.state.title)
-                        .font(.system(size: 24, weight: .semibold))
+                        .font(.system(size: 20, weight: .semibold))
                         .foregroundStyle(.primary)
                         .lineLimit(1)
                         .truncationMode(.tail)
                         .frame(maxWidth: .infinity, alignment: .center)
-                        .offset(y: 15)
+                        .offset(y: 16)
                 }
                 .contentMargins(.all, 0)
             } compactLeading: {
