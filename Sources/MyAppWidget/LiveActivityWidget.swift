@@ -143,7 +143,7 @@ struct DesignActivityWidget: Widget {
                         .lineLimit(1)
                         .truncationMode(.tail)
                         .frame(maxWidth: .infinity, alignment: .center)
-                        .offset(y: 16)
+                        .offset(y: 13)
                 }
                 .contentMargins(.all, 0)
             } compactLeading: {
